@@ -4,7 +4,11 @@
 一个多 Agent 协作系统，支持用户通过自然语言生成结构化的旅游行程单（景点+美食）。
 
 #### 软件架构
-软件架构说明
+本项目采用模块化设计，核心组件包括：
+- **Config**: 基于 `pydantic-settings` 的企业级配置管理。
+- **Core**: 具备 Fallback 机制的 LLM 模型工厂（Ollama + DeepSeek）。
+- **Agents**: 基于 LangGraph 的多 Agent 协作系统。
+- **Database**: SQLite 持久化存储用户偏好与行程。
 
 
 #### 安装教程
