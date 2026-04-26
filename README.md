@@ -1,45 +1,62 @@
-# TravelMaster -AI 智能旅游规划 Agent
+# TravelMaster - AI 智能旅游规划 Agent
 
 #### 介绍
-一个多 Agent 协作系统，支持用户通过自然语言生成结构化的旅游行程单（景点+美食）。
+TravelMaster 是一款基于多 Agent 协作的智能化旅游规划平台。它能够通过自然语言理解用户的旅行需求，并利用实时互联网搜索与地图 API 验证，生成**杜绝幻觉、真实可信**的结构化旅游行程单。
 
-#### 软件架构
-本项目采用现代化的微服务架构，核心组件包括：
-- **前端 (Frontend)**: React + TypeScript + Tailwind CSS，提供现代化的用户交互界面。
-- **后端网关 (Backend)**: Java Spring Boot 3 (WebFlux)，负责业务逻辑、持久化及 API 转发。
-- **Agent 核心 (Python)**: FastAPI + LangGraph，实现 Planner、Researcher、Validator、Generator 多 Agent 协作。
-- **数据库**: H2 (Java侧) 与 SQLite (Python侧) 协同工作，支持行程持久化与历史记录查询。
+---
 
-#### 更新日志
-- **v1.2**: 根除地点幻觉与张冠李戴问题，增加 Prompt 事实核查约束；新增行程单“地图定位”功能，支持一键跳转高德地图导航。
-- **v1.1**: 修复前端刷新后历史记录丢失问题（引入 localStorage）；优化 AI 规划细节度，强制 LLM 输出具体地标与店铺名。
+#### 🛠️ 技术栈
+- **前端 (Frontend)**: 
+  - React + TypeScript + Tailwind CSS
+  - **高德地图 JS API**: 实现可视化路线规划、地图打点及自动缩放。
+- **后端 (Backend)**: 
+  - Java Spring Boot 3 (WebFlux)
+  - **H2 Database**: 负责用户信息及历史行程的持久化存储。
+- **Agent 核心 (Python)**: 
+  - FastAPI + LangGraph + LangChain
+  - **多 Agent 协作**: Planner (规划)、Researcher (研究)、Generator (生成)。
+  - **深度搜索**: DuckDuckGo + Trafilatura (网页正文抓取)。
+  - **地理验证**: 高德地图 Web 服务 API。
 
+---
 
-#### 安装教程
+#### 🚀 核心功能与问题解决方案
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+| 遇到的问题 | 解决技术与策略 |
+| :--- | :--- |
+| **AI 幻觉/编造地点** | **POI 强校验**：接入高德地图 API，对所有提取到的地点进行真实性核对，查无此地直接剔除。 |
+| **地点重名导致误报** | **城市感知校验**：搜索时强制携带城市前缀（如“延安 人民公园”），并严格比对 API 返回的 `cityname`。 |
+| **搜索信息太浅/不准** | **深度网页抓取**：引入 `trafilatura`，对搜索结果前 10 个链接进行正文深度阅读，获取海量真实素材。 |
+| **路线规划失效** | **动态路线绘制**：利用 AMap.Driving 插件自动计算途径点最优路径，并使用 `setFitView` 自动对焦。 |
+| **交互体验不佳** | **UI/UX 升级**：采用毛玻璃风格，将导航按钮内嵌至景点名称旁，新增一键复制行程功能。 |
 
-#### 使用说明
+---
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+#### 📦 安装与配置
 
-#### 参与贡献
+1.  **后端环境**:
+    - 在 Python 根目录下创建 `.env` 文件。
+    - 配置 `AMAP_API_KEY` (高德 Web 服务 Key) 和 `TAVILY_API_KEY` (可选)。
+2.  **前端环境**:
+    - 在 `src/components/MapViewer.tsx` 中填入您的高德 JS API Key 和安全密钥。
+    - 运行 `npm install` 安装相关依赖。
+3.  **启动**:
+    - Python 端: `python server.py`
+    - Java 端: 运行 Spring Boot 主类。
+    - 前端: `npm run dev`
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
+---
 
+#### 📅 更新日志
+- **v1.5**: 新增 10 链接深度网页抓取，信息量提升 10 倍。
+- **v1.4**: 优化地图交互，支持不同类型 POI 图标（🏛️/🍴）与一键复制功能。
+- **v1.3**: 彻底修复跨城地点误报，实现高德 API 极致严格校验。
+- **v1.2**: 引入可视化地图路线规划，导航按钮内嵌，提升 UI 美感。
 
-#### 特技
+---
 
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+#### 🤝 参与贡献
+1. Fork 本仓库
+2. 新建 Feat_xxx 分支
+3. 提交代码并推送至 Origin
+4. 新建 Pull Request

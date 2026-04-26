@@ -1,0 +1,28 @@
+# Environments
+.env
+.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+
+# Java
+target/
+*.class
+*.db
+*.lock.db
+*.trace.db
+
+# Frontend
+node_modules/
+dist/
+.DS_Store
+
+# IDE
+.vscode/
+.idea/

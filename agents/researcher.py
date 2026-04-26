@@ -32,16 +32,34 @@ async def researcher_node(state: TravelState) -> dict:
 
     print(f"🔍 Researcher 开始执行 {len(plan_steps)} 个搜索任务...")
 
+    import re
+    from tools.scraper_tool import scrape_url
+
     for i, step in enumerate(plan_steps):
         try:
             print(f"  [{i+1}/{len(plan_steps)}] 正在搜索: {step}")
-            # 调用我们之前封装的统一搜索接口
             result = run_search(step)
             
-            # 优化：如果结果太短或包含“未找到”，尝试用更具体的关键词再搜一次
-            if len(result) < 50 or "未找到" in result or "failed" in result.lower():
-                refined_query = f"{step} 具体地址 开放时间 电话 官方网站"
-                print(f"  [重试] 结果不理想，尝试更具体的搜索: {refined_query}")
+            # 1. 尝试提取搜索结果中的 URL (DuckDuckGo 的结果格式通常包含 link: URL)
+            urls = re.findall(r'link: (https?://[^\],]+)', result)
+            
+            # 2. 对前 10 个关键链接进行深度抓取
+            if urls:
+                print(f"    🔎 发现 {len(urls)} 个链接，准备对前 10 个进行深度内容抓取...")
+                for url in urls[:10]:
+                    # 排除一些不需要抓取的域名
+                    if any(domain in url for domain in ["google.com", "bing.com", "baidu.com"]):
+                        continue
+                    
+                    print(f"    📖 正在深度阅读: {url}")
+                    scraped_content = await scrape_url(url)
+                    if scraped_content:
+                        result += f"\n--- 来自网页 {url} 的深度详情 ---\n{scraped_content}\n"
+
+            # 3. 如果结果还是太短，尝试宽泛搜索重试
+            if len(result) < 100:
+                refined_query = step.split("site:")[0] + " 旅游 攻略 景点 餐厅 推荐"
+                print(f"  [重试] 搜索信息不足，尝试宽泛搜索: {refined_query}")
                 refined_result = run_search(refined_query)
                 result += f"\n补充搜索结果: {refined_result}"
             
@@ -51,8 +69,5 @@ async def researcher_node(state: TravelState) -> dict:
             research_results.append(error_msg)
             print(f"  ❌ 搜索任务 '{step}' 失败: {e}")
 
-    print(f"✅ Researcher 完成，共收集 {len(research_results)} 条信息")
-    
-    # 返回更新后的研究结果列表
-    # LangGraph 会自动将这些新结果合并到全局 State 中
+    print(f"✅ Researcher 完成，已通过深度抓取获取了大量信息。")
     return {"research_results": research_results}

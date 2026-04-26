@@ -9,6 +9,7 @@ export interface PlanRequest {
 export interface PlanResponse {
   itinerary: string;
   status: string;
+  waypoints?: any[];
 }
 
 export interface Itinerary {
@@ -16,6 +17,7 @@ export interface Itinerary {
   userId: string;
   content: string;
   createdAt: string;
+  waypoints?: string; // from Java DB it's stored as JSON string
 }
 
 // 创建 axios 实例
@@ -40,4 +42,11 @@ export const createItinerary = async (request: PlanRequest): Promise<PlanRespons
 export const getHistory = async (userId: string): Promise<Itinerary[]> => {
   const response = await apiClient.get(`/history/${userId}`);
   return response.data;
+};
+
+/**
+ * 删除指定的历史行程
+ */
+export const deleteItinerary = async (id: number): Promise<void> => {
+  await apiClient.delete(`/history/${id}`);
 };

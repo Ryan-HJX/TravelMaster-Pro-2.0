@@ -21,10 +21,12 @@ PLANNER_PROMPT = """
 1. **地点锁定与隔离**：
    - 必须从用户需求中提取唯一的、最核心的目的地（例如“瑞安”）。
    - **严禁跨地点联想**：所有搜索关键词必须强制包含该目的地名称。如果用户输入的是 A 地，绝对禁止出现 B 地的任何关键词。
-2. **拒绝模糊词汇**：不要使用“当地美食”、“著名景点”等宽泛词汇。
+2. **拒绝模糊词汇，利用平台数据**：
+   - 不要使用“当地美食”、“著名景点”等宽泛词汇。
+   - **搜索策略**：为了找到真实评分，建议在搜索词中加入 `site:dianping.com` 或 `site:ctrip.com`。
 3. **强制具体化**：必须包含具体的地标全称、餐厅名称或详细地址。
-   - 错误示例：["北京美食", "故宫开放时间"]
-   - 正确示例：["瑞安市玉海楼门票及开放时间", "瑞安忠义街历史文化街区必吃小吃", "瑞安外滩公园夜景攻略"]
+   - 错误示例：["温州美食", "景点"]
+   - 正确示例：["温州 必吃榜 餐厅 推荐 site:dianping.com", "温州 江心屿 门票 攻略 site:ctrip.com", "温州 五马街 必打卡店"]
 4. **独立性**：请忽略任何可能存在的历史对话上下文，仅针对当前的 {user_input} 进行拆解。
 
 请分析需求，并返回一个 JSON 格式的列表，包含 3-5 个具体的搜索关键词或问题。
@@ -62,22 +64,24 @@ async def planner_node(state: TravelState) -> dict:
     # 4. 解析结果
     plan_steps = []
     try:
-        # 尝试清理模型可能返回的 Markdown 代码块标记 (```json ... ```)
         content = response.content
+        if not isinstance(content, str):
+            content = str(content)
+        
+        # 尝试清理模型可能返回的 Markdown 代码块标记 (```json ... ```)
         if "```json" in content:
             content = content.split("```json")[1].split("```")[0]
         elif "```" in content:
             content = content.split("```")[1].split("```")[0]
         
-        parsed = json.loads(content)
+        parsed = json.loads(content.strip())
         if isinstance(parsed, list) and len(parsed) > 0:
-            plan_steps = parsed
+            # 确保列表中的每一项都是字符串
+            plan_steps = [str(step) for step in parsed if step]
         else:
-            # 如果解析出来不是列表或为空，使用原始内容作为单一步骤
-            plan_steps = [str(response.content)]
+            plan_steps = [state["user_input"]]
     except (json.JSONDecodeError, Exception) as e:
-        # 如果解析完全失败，将整个回复作为一个搜索关键词
-        print(f"⚠️ JSON 解析失败，使用原始回复作为步骤: {e}")
+        print(f"⚠️ JSON 解析失败，使用原始输入作为兜底: {e}")
         plan_steps = [state["user_input"]]
 
     print(f"📋 Planner 拆解出的任务步骤: {plan_steps}")

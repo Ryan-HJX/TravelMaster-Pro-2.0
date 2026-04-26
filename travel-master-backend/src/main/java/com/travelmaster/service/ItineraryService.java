@@ -44,6 +44,16 @@ public class ItineraryService {
                         Itinerary itinerary = new Itinerary();
                         itinerary.setUserId(request.getUserId());
                         itinerary.setContent(response.getItinerary());
+                        
+                        try {
+                            if (response.getWaypoints() != null) {
+                                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                                itinerary.setWaypoints(mapper.writeValueAsString(response.getWaypoints()));
+                            }
+                        } catch (Exception e) {
+                            System.err.println("❌ 途经点 JSON 序列化失败: " + e.getMessage());
+                        }
+
                         itineraryRepository.save(itinerary);
                         System.out.println("✅ 行程单已存入数据库 (ID: " + itinerary.getId() + ")");
                     }
@@ -55,5 +65,13 @@ public class ItineraryService {
      */
     public List<Itinerary> getHistory(String userId) {
         return itineraryRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+    /**
+     * 删除指定的行程。
+     */
+    public void deleteItinerary(Long id) {
+        itineraryRepository.deleteById(id);
+        System.out.println("✅ 行程单已删除 (ID: " + id + ")");
     }
 }

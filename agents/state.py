@@ -21,6 +21,7 @@ class TravelState(TypedDict):
         research_results (List[str]): 由 Researcher 节点收集到的搜索信息或数据库查询结果。
         validation_feedback (Optional[str]): Validator 节点返回的逻辑检查反馈（如时间冲突警告）。
         final_itinerary (Optional[str]): 最终生成的 Markdown 格式行程单。
+        waypoints (Optional[List[dict]]): 验证过的途经点坐标列表，供前端地图渲染。
         user_id (Optional[str]): 当前交互用户的唯一标识，用于记忆管理。
     """
     messages: Annotated[list, add_messages]
@@ -29,4 +30,5 @@ class TravelState(TypedDict):
     research_results: List[str]
     validation_feedback: Optional[str]
     final_itinerary: Optional[str]
+    waypoints: Optional[List[dict]]
     user_id: Optional[str]

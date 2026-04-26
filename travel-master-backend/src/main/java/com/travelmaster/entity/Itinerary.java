@@ -22,6 +22,9 @@ public class Itinerary {
     @Column(columnDefinition = "TEXT")
     private String content;
 
+    @Column(columnDefinition = "TEXT")
+    private String waypoints; // 存储为 JSON 字符串
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

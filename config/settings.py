@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     # --- 数据库配置 ---
     DATABASE_URL: str = "sqlite:///./travel_master.db"
 
+    # --- 高德地图配置 ---
+    AMAP_API_KEY: Optional[str] = None
+
     # 配置 pydantic-settings 的行为：从 .env 文件读取
     model_config = SettingsConfigDict(
         env_file=".env",

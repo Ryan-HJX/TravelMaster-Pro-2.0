@@ -13,6 +13,7 @@ function App() {
     generateItinerary,
     fetchHistory,
     selectFromHistory,
+    removeItinerary,
   } = useTravelPlanner();
 
   // 组件挂载时加载历史记录（优先从 localStorage 读取 userId）
@@ -26,10 +27,11 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 顶部导航栏 */}
-      <header className="bg-blue-600 text-white shadow-lg">
-        <div className="container mx-auto px-6 py-4">
-          <h1 className="text-3xl font-bold">🌍 TravelMaster - AI 智能旅游规划</h1>
-          <p className="text-blue-100 mt-1">基于多 Agent 协作的行程生成系统</p>
+      <header className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-xl relative overflow-hidden">
+        <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
+        <div className="container mx-auto px-6 py-8 relative z-10">
+          <h1 className="text-4xl font-extrabold tracking-tight mb-2">🌍 TravelMaster</h1>
+          <p className="text-blue-100/90 text-lg font-medium tracking-wide">AI 智能旅游规划 · 发现地道的美食与美景</p>
         </div>
       </header>
 
@@ -39,7 +41,7 @@ function App() {
           {/* 左侧：输入区和历史记录 */}
           <div className="lg:col-span-1 space-y-6">
             <PlannerInput onGenerate={generateItinerary} loading={loading} />
-            <HistoryList history={history} onSelect={selectFromHistory} />
+            <HistoryList history={history} onSelect={selectFromHistory} onRemove={removeItinerary} />
           </div>
 
           {/* 右侧：行程单展示区 */}
@@ -51,15 +53,15 @@ function App() {
             )}
 
             {currentItinerary ? (
-              <ItineraryViewer content={currentItinerary.itinerary} />
+              <ItineraryViewer content={currentItinerary.itinerary} waypoints={currentItinerary.waypoints} />
             ) : (
-              <div className="bg-white rounded-lg shadow-md p-12 text-center">
-                <div className="text-6xl mb-4">✈️</div>
-                <h2 className="text-2xl font-semibold text-gray-700 mb-2">
-                  开始您的旅行规划
+              <div className="glass-panel rounded-2xl shadow-xl p-16 text-center transition-all duration-300 hover:shadow-2xl">
+                <div className="text-7xl mb-6 animate-bounce">✈️</div>
+                <h2 className="text-3xl font-bold text-gray-800 mb-3 tracking-tight">
+                  开启您的完美旅程
                 </h2>
-                <p className="text-gray-500">
-                  在左侧输入您的旅行需求，AI 将为您生成详细的行程单
+                <p className="text-gray-500 text-lg">
+                  在左侧输入您的旅行需求，AI 将为您检索真实评价并生成专属行程单
                 </p>
               </div>
             )}

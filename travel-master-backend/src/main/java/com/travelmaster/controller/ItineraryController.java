@@ -44,4 +44,12 @@ public class ItineraryController {
     public List<Itinerary> getHistory(@PathVariable String userId) {
         return itineraryService.getHistory(userId);
     }
+
+    /**
+     * 删除指定的历史行程单。
+     */
+    @DeleteMapping("/history/{id}")
+    public void deleteHistory(@PathVariable Long id) {
+        itineraryService.deleteItinerary(id);
+    }
 }

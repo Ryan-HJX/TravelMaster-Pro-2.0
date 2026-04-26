@@ -9,4 +9,5 @@ import lombok.Data;
 public class PlanResponse {
     private String itinerary;
     private String status;
+    private java.util.List<Object> waypoints;
 }

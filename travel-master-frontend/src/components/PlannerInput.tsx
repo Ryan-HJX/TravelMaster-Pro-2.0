@@ -23,8 +23,8 @@ const PlannerInput: React.FC<PlannerInputProps> = ({ onGenerate, loading }) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">✈️ 开始规划您的旅行</h2>
+    <div className="glass-panel rounded-2xl shadow-lg p-6 mb-6">
+      <h2 className="text-2xl font-bold text-gray-800 mb-4 tracking-tight">✈️ 开始规划您的旅行</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="userId" className="block text-sm font-medium text-gray-700 mb-1">

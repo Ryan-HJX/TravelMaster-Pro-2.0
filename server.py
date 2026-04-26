@@ -41,9 +41,11 @@ class PlanResponse(BaseModel):
     Attributes:
         itinerary (str): 生成的 Markdown 格式行程单。
         status (str): 任务执行状态。
+        waypoints (list): 途经点坐标列表，用于前端地图渲染。
     """
     itinerary: str
     status: str
+    waypoints: list = []
 
 
 @app.on_event("startup")
@@ -80,6 +82,7 @@ async def plan_trip(request: PlanRequest):
             "research_results": [],
             "validation_feedback": None,
             "final_itinerary": None,
+            "waypoints": [],
             "user_id": request.user_id or "anonymous"
         }
 
@@ -87,12 +90,17 @@ async def plan_trip(request: PlanRequest):
         final_state = await graph.ainvoke(initial_state)
         
         itinerary = final_state.get("final_itinerary")
+        waypoints = final_state.get("waypoints", [])
         if not itinerary:
             raise HTTPException(status_code=500, detail="行程生成失败")
 
-        return PlanResponse(itinerary=itinerary, status="success")
+        return PlanResponse(itinerary=itinerary, status="success", waypoints=waypoints)
 
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"❌ 发生严重错误: {str(e)}")
+        print(error_trace)
         raise HTTPException(status_code=500, detail=f"内部服务器错误: {str(e)}")
 
 
