@@ -4,11 +4,14 @@
 一个多 Agent 协作系统，支持用户通过自然语言生成结构化的旅游行程单（景点+美食）。
 
 #### 软件架构
-本项目采用模块化设计，核心组件包括：
-- **Config**: 基于 `pydantic-settings` 的企业级配置管理。
-- **Core**: 具备 Fallback 机制的 LLM 模型工厂（Ollama + DeepSeek）。
-- **Agents**: 基于 LangGraph 的多 Agent 协作系统。
-- **Database**: SQLite 持久化存储用户偏好与行程。
+本项目采用现代化的微服务架构，核心组件包括：
+- **前端 (Frontend)**: React + TypeScript + Tailwind CSS，提供现代化的用户交互界面。
+- **后端网关 (Backend)**: Java Spring Boot 3 (WebFlux)，负责业务逻辑、持久化及 API 转发。
+- **Agent 核心 (Python)**: FastAPI + LangGraph，实现 Planner、Researcher、Validator、Generator 多 Agent 协作。
+- **数据库**: H2 (Java侧) 与 SQLite (Python侧) 协同工作，支持行程持久化与历史记录查询。
+
+#### 更新日志
+- **v1.1**: 修复前端刷新后历史记录丢失问题（引入 localStorage）；优化 AI 规划细节度，强制 LLM 输出具体地标与店铺名；解决地点混淆问题，增强 Prompt 约束力。
 
 
 #### 安装教程
