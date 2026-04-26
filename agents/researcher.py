@@ -37,6 +37,14 @@ async def researcher_node(state: TravelState) -> dict:
             print(f"  [{i+1}/{len(plan_steps)}] 正在搜索: {step}")
             # 调用我们之前封装的统一搜索接口
             result = run_search(step)
+            
+            # 优化：如果结果太短或包含“未找到”，尝试用更具体的关键词再搜一次
+            if len(result) < 50 or "未找到" in result or "failed" in result.lower():
+                refined_query = f"{step} 具体地址 开放时间 电话 官方网站"
+                print(f"  [重试] 结果不理想，尝试更具体的搜索: {refined_query}")
+                refined_result = run_search(refined_query)
+                result += f"\n补充搜索结果: {refined_result}"
+            
             research_results.append(f"任务: {step}\n结果: {result}\n---")
         except Exception as e:
             error_msg = f"任务: {step}\n错误: 搜索过程中发生异常 - {str(e)}\n---"

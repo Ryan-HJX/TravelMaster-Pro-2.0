@@ -5,7 +5,14 @@
 """
 
 import aiosqlite
+import os
 from config.settings import settings
+
+# 获取数据库文件的绝对路径
+db_path = settings.DATABASE_URL.replace("sqlite:///", "")
+if not os.path.isabs(db_path):
+    # 如果是相对路径，则基于当前工作目录解析
+    db_path = os.path.join(os.getcwd(), db_path)
 
 
 async def init_db():
@@ -16,7 +23,7 @@ async def init_db():
     - Users: 存储用户 ID 及其偏好设置（JSON 格式）。
     - Itineraries: 存储生成的行程单内容。
     """
-    async with aiosqlite.connect(settings.DATABASE_URL.replace("sqlite:///", "")) as db:
+    async with aiosqlite.connect(db_path) as db:
         # 创建用户表
         await db.execute("""
             CREATE TABLE IF NOT EXISTS users (
@@ -52,7 +59,7 @@ async def get_user_preferences(user_id: str) -> dict:
     Returns:
         dict: 用户偏好字典，若不存在则返回空字典。
     """
-    async with aiosqlite.connect(settings.DATABASE_URL.replace("sqlite:///", "")) as db:
+    async with aiosqlite.connect(db_path) as db:
         cursor = await db.execute("SELECT preferences FROM users WHERE user_id = ?", (user_id,))
         row = await cursor.fetchone()
         if row:
@@ -70,7 +77,7 @@ async def save_itinerary(user_id: str, title: str, content: str):
         title: 行程标题。
         content: 行程内容（Markdown）。
     """
-    async with aiosqlite.connect(settings.DATABASE_URL.replace("sqlite:///", "")) as db:
+    async with aiosqlite.connect(db_path) as db:
         await db.execute(
             "INSERT INTO itineraries (user_id, title, content) VALUES (?, ?, ?)",
             (user_id, title, content)
