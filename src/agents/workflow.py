@@ -5,11 +5,11 @@ LangGraph 工作流组装模块。
 """
 
 from langgraph.graph import StateGraph, END
-from agents.state import TravelState
-from agents.planner import planner_node
-from agents.researcher import researcher_node
-from agents.validator import validator_node
-from agents.itinerary_generator import itinerary_generator_node
+from src.agents.state import TravelState
+from src.agents.planner import planner_node
+from src.agents.researcher import researcher_node
+from src.agents.validator import validator_node
+from src.agents.itinerary_generator import itinerary_generator_node
 
 
 def should_regenerate(state: TravelState) -> str:

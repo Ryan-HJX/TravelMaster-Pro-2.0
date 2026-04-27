@@ -40,16 +40,19 @@ const ItineraryViewer: React.FC<ItineraryViewerProps> = ({ content, waypoints })
     }
   };
 
-  // 尝试解析 Java 后端传来的 JSON 字符串
-  let parsedWaypoints = waypoints;
-  if (typeof waypoints === 'string') {
-    try {
-      parsedWaypoints = JSON.parse(waypoints);
-    } catch (e) {
-      console.error('Failed to parse waypoints', e);
-      parsedWaypoints = [];
+  // 使用 useMemo 解析途经点，防止由于父组件重新渲染导致地图不断销毁重构
+  const parsedWaypoints = React.useMemo(() => {
+    if (!waypoints) return [];
+    if (typeof waypoints === 'string') {
+      try {
+        return JSON.parse(waypoints);
+      } catch (e) {
+        console.error('Failed to parse waypoints', e);
+        return [];
+      }
     }
-  }
+    return waypoints;
+  }, [waypoints]);
 
   return (
     <div className="space-y-6" ref={contentRef}>

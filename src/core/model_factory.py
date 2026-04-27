@@ -6,7 +6,7 @@
 
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
-from config.settings import settings
+from src.config.settings import settings
 
 
 def get_llm_with_fallback():

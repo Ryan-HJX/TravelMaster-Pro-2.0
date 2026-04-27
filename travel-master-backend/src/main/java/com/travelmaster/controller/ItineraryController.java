@@ -12,6 +12,7 @@ import java.util.List;
  * 行程规划控制器：对外提供 RESTful API。
  */
 @RestController
+@CrossOrigin(origins = "*")
 @RequestMapping("/api/travel")
 public class ItineraryController {
 

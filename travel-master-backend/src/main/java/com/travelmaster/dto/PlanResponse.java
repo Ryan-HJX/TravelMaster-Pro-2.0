@@ -7,7 +7,13 @@ import lombok.Data;
  */
 @Data
 public class PlanResponse {
-    private String itinerary;
-    private String status;
-    private java.util.List<Object> waypoints;
+    private int code;
+    private DataContent data;
+    private String message;
+
+    @Data
+    public static class DataContent {
+        private String itinerary;
+        private java.util.List<Object> waypoints;
+    }
 }

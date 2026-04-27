@@ -4,8 +4,8 @@ Researcher 节点模块。
 负责执行 Planner 拆解出的搜索任务，并整合搜索结果。
 """
 
-from agents.state import TravelState
-from tools.search_tool import run_search
+from src.agents.state import TravelState
+from src.tools.search_tool import run_search
 
 
 async def researcher_node(state: TravelState) -> dict:
@@ -33,7 +33,7 @@ async def researcher_node(state: TravelState) -> dict:
     print(f"🔍 Researcher 开始执行 {len(plan_steps)} 个搜索任务...")
 
     import re
-    from tools.scraper_tool import scrape_url
+    from src.tools.scraper_tool import scrape_url
 
     for i, step in enumerate(plan_steps):
         try:

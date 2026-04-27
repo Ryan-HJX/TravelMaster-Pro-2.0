@@ -5,7 +5,7 @@
 """
 
 from langchain_community.tools import DuckDuckGoSearchResults
-from config.settings import settings
+from src.config.settings import settings
 import os
 
 # 尝试导入 Tavily

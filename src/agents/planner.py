@@ -4,8 +4,8 @@ Planner 节点模块。
 负责将用户的模糊旅游需求拆解为具体的搜索任务列表。
 """
 
-from agents.state import TravelState
-from core.model_factory import get_llm_with_fallback
+from src.agents.state import TravelState
+from src.core.model_factory import get_llm_with_fallback
 from langchain_core.prompts import ChatPromptTemplate
 import json
 

@@ -4,8 +4,8 @@ Validator 节点模块。
 负责检查行程信息的逻辑一致性，识别时间冲突或事实矛盾。
 """
 
-from agents.state import TravelState
-from core.model_factory import get_llm_with_fallback
+from src.agents.state import TravelState
+from src.core.model_factory import get_llm_with_fallback
 from langchain_core.prompts import ChatPromptTemplate
 
 

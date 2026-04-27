@@ -40,15 +40,15 @@ public class ItineraryService {
                 .bodyToMono(PlanResponse.class)
                 .doOnSuccess(response -> {
                     // 当成功获取到行程单后，存入数据库
-                    if (response != null && response.getItinerary() != null) {
+                    if (response != null && response.getData() != null && response.getData().getItinerary() != null) {
                         Itinerary itinerary = new Itinerary();
                         itinerary.setUserId(request.getUserId());
-                        itinerary.setContent(response.getItinerary());
+                        itinerary.setContent(response.getData().getItinerary());
                         
                         try {
-                            if (response.getWaypoints() != null) {
+                            if (response.getData().getWaypoints() != null) {
                                 com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                                itinerary.setWaypoints(mapper.writeValueAsString(response.getWaypoints()));
+                                itinerary.setWaypoints(mapper.writeValueAsString(response.getData().getWaypoints()));
                             }
                         } catch (Exception e) {
                             System.err.println("❌ 途经点 JSON 序列化失败: " + e.getMessage());

@@ -1,36 +1,80 @@
-# TravelMaster - AI 智能旅游规划 Agent
+# TravelMaster 🌍 AI 智能旅游规划系统
 
-基于 LangGraph + LangChain + Ollama 的本地化智能旅游规划助手。
+TravelMaster 是一款基于 **LangGraph**、**Java Spring Boot** 和 **React** 构建的现代化 AI 旅游规划助手。它能够根据用户需求自动拆解任务、搜索实时信息、验证逻辑一致性，并最终生成带实时地图轨迹和天气预报的精美行程单。
 
-## 🚀 核心特性
-- **本地化部署**: 支持 Ollama 运行 Gemma2 等模型，隐私安全。
-- **长文本研究**: 自动爬取携程、马蜂窝等深度攻略，解决 AI “胡编乱造”问题。
-- **高德地图校验**: 每一个景点都经过 AMAP API 真实性校验，并附带一键导航。
-- **流水线生成架构**: 针对小模型优化的“分段式”生成逻辑，确保输出结构化表格。
+## 🌟 核心特性
 
-## 🧠 提示词工程 (Prompt Engineering) 实践记录
-在开发过程中，我们针对本地小模型（Gemma 4b/9b）进行了深度调教，总结出以下核心经验：
+- **LangGraph 驱动的 AI 工作流**：采用 Planner-Researcher-Validator-Generator 架构，确保行程逻辑严密。
+- **三端联动架构**：
+  - **前端 (React + Vite)**：极致美观的 UI，实时高德地图轨迹渲染。
+  - **Java 后端 (Spring Boot)**：负责业务持久化、用户历史记录管理（H2 数据库）。
+  - **Python 后端 (FastAPI)**：AI 核心大脑，集成 Tavily 搜索引擎和多模态验证。
+- **高德地图集成**：动态计算景点坐标，一键生成可视化旅游路线图。
+- **实时天气预报**：根据目的地动态抓取未来 4-5 天的真实天气。
 
-### 1. 从“描述”到“约束” (Constraint Engineering)
-- **现象**: 早期模型容易忽略 System Message，输出宽泛的文字段落。
-- **方案**: 引入“铁律”模式，将指令从“建议”升级为“必须执行的规则”，并使用强烈的视觉分隔符。
+## 🛠️ 技术栈
 
-### 2. Few-Shot 引导的魔力
-- **现象**: 模型不知道 Markdown 表格的具体样式。
-- **方案**: 在提示词中直接塞入一个“标准答案示例”，利用模型的模仿本能强制其对齐格式。
+| 层次 | 技术 |
+| :--- | :--- |
+| **AI 编排** | LangChain, LangGraph, Tavily Search API |
+| **前端** | React 18, Vite, Tailwind CSS, AMap (高德) JS API 2.0 |
+| **Java 后端** | Spring Boot 3, Spring WebFlux, JPA, H2 Database |
+| **Python 后端** | FastAPI, Pydantic, asyncio |
 
-### 3. 上下文截断与优先级过滤
-- **现象**: 长网页素材（如 Tripadvisor）会导致模型上下文过载，遗忘用户原始需求。
-- **方案**: 实施暴力截断（限制素材长度），并在 Human 提示词中重复强调用户原始输入的最高优先级。
+## 🚀 快速开始
 
-### 4. 方案 A：流水线拆解 (Pipeline/Chained Generation)
-- **最终杀手锏**: 针对小模型无法同时处理多项逻辑的问题，将生成过程拆分为“天气看板提取”和“行程表格构建”两个独立阶段。每次只让模型做一件事，成功率从 20% 提升至 90% 以上。
+### 1. 环境准备
+确保您的系统中已安装：
+- Python 3.10+
+- Java 17+ (JDK)
+- Node.js 18+
 
-## 🛠️ 安装与运行
-1. **安装依赖**: `pip install -r requirements.txt`
-2. **配置环境**: 复制 `.env.example` 为 `.env` 并填写相关 API Key。
-3. **启动后端**: `python server.py`
-4. **启动前端**: `cd travel-master-frontend && npm run dev`
+### 2. 获取 API 密钥
+您需要申请以下 Key 并填入配置文件：
+- **高德地图 API**: 获取 `Key` 和 `安全密钥`。
+- **Tavily Search API**: 用于 AI 实时搜索。
+- **LLM API**: 如 OpenAI 或 阿里云 DashScope。
 
----
-*Created with ❤️ by Antigravity AI Agent*
+### 3. 配置文件设置
+#### Python 后端 (`.env`)
+```env
+TAVILY_API_KEY=您的_Tavily_Key
+DASHSCOPE_API_KEY=您的_LLM_Key
+AMAP_API_KEY=您的_高德_Web端_Key
+```
+
+#### 前端 (`travel-master-frontend/.env`)
+```env
+VITE_AMAP_KEY=您的_高德_JSAPI_Key
+VITE_AMAP_SECURITY_CODE=您的_高德_安全密钥
+```
+
+### 4. 启动项目
+**第一步：启动 Python AI 服务 (Port 8000)**
+```bash
+pip install -r requirements.txt
+python main.py
+```
+
+**第二步：启动 Java 持久化服务 (Port 8080)**
+```bash
+cd travel-master-backend
+./mvnw spring-boot:run
+```
+
+**第三步：启动前端界面 (Port 5173)**
+```bash
+cd travel-master-frontend
+npm install
+npm run dev
+```
+
+## 📸 运行预览
+1. 输入“北京 5 天深度游”。
+2. AI 自动通过 Tavily 搜索景点。
+3. 校验器确保景点营业时间和路线顺路。
+4. 生成精美 Markdown 行程单。
+5. 地图自动对焦显示所有景点标记与蓝色轨迹线。
+
+## 📄 开源协议
+MIT License

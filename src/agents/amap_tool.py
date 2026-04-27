@@ -7,7 +7,7 @@ import os
 import httpx
 from typing import Optional, Dict
 
-from config.settings import settings
+from src.config.settings import settings
 
 async def verify_poi_amap(keyword: str, city: str = "") -> Optional[Dict]:
     """
@@ -43,11 +43,14 @@ async def verify_poi_amap(keyword: str, city: str = "") -> Optional[Dict]:
                 # 高德返回的 cityname 或 adname 必须包含目标城市关键字
                 poi_city = poi.get("cityname", "")
                 poi_ad = poi.get("adname", "")
+                poi_name = poi.get("name", "")
                 
                 if city:
-                    # 只要城市名不在 cityname 和 adname 中，就判定为跨城误报
-                    if city not in poi_city and city not in poi_ad:
-                        print(f"  ❌ 跨城误报过滤: 搜到 {poi_city}{poi_ad}，但目标是 {city}。已丢弃。")
+                    # 鲁棒性匹配：如果 city 是 "内江"，而 poi_city 是 "内江市"，或者反之，都应视为匹配
+                    # 我们取前两个字进行模糊匹配，或者检查包含关系
+                    match_city = city[:2] # 绝大多数中国城市前两个字是唯一的
+                    if match_city not in poi_city and match_city not in poi_ad and match_city not in poi_name:
+                        print(f"  ❌ 跨城过滤: 搜到 {poi_city}{poi_ad} ({poi_name})，但目标是 {city}。已丢弃。")
                         return None
                 
                 # 严格校验：过滤掉明显不相关的类型（比如汽修、洗车、公共厕所等）

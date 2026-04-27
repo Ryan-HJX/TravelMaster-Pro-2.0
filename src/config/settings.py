@@ -23,7 +23,7 @@ class Settings(BaseSettings):
 
     # --- 本地模型配置 ---
     OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_MODEL: str = "gemma4:e4b"
+    OLLAMA_MODEL: str = "gemma4:e2b"
 
     # --- 云端模型配置 (Fallback) ---
     DEEPSEEK_API_KEY: Optional[str] = None
