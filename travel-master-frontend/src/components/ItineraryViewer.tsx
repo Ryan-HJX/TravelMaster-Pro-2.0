@@ -2,6 +2,8 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import MapViewer from './MapViewer';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface ItineraryViewerProps {
   content: string;
@@ -12,6 +14,32 @@ interface ItineraryViewerProps {
  * 行程单展示组件：使用 react-markdown 渲染 Markdown 格式的行程单
  */
 const ItineraryViewer: React.FC<ItineraryViewerProps> = ({ content, waypoints }) => {
+  const contentRef = React.useRef<HTMLDivElement>(null);
+
+  /**
+   * 导出为 PDF 技能
+   */
+  const exportToPDF = async () => {
+    if (!contentRef.current) return;
+    try {
+      const canvas = await html2canvas(contentRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save('TravelMaster-Itinerary.pdf');
+    } catch (error) {
+      console.error('PDF 导出失败:', error);
+      alert('PDF 导出失败，请重试');
+    }
+  };
+
   // 尝试解析 Java 后端传来的 JSON 字符串
   let parsedWaypoints = waypoints;
   if (typeof waypoints === 'string') {
@@ -24,7 +52,7 @@ const ItineraryViewer: React.FC<ItineraryViewerProps> = ({ content, waypoints })
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" ref={contentRef}>
       {/* 如果有途经点，显示高德地图路线规划 */}
       {parsedWaypoints && Array.isArray(parsedWaypoints) && parsedWaypoints.length > 0 && (
         <MapViewer waypoints={parsedWaypoints} />
@@ -33,16 +61,25 @@ const ItineraryViewer: React.FC<ItineraryViewerProps> = ({ content, waypoints })
       <div className="glass-panel rounded-2xl shadow-lg p-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-800 border-l-4 border-blue-500 pl-4">📋 您的行程单</h2>
-          <button 
-            onClick={() => {
-              navigator.clipboard.writeText(content);
-              alert('行程单已复制到剪贴板！');
-            }}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors border border-blue-100"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
-            复制行程
-          </button>
+          <div className="flex gap-3">
+            <button 
+              onClick={() => {
+                navigator.clipboard.writeText(content);
+                alert('行程单已复制到剪贴板！');
+              }}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors border border-blue-100"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+              复制
+            </button>
+            <button 
+              onClick={exportToPDF}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors shadow-sm"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+              导出 PDF
+            </button>
+          </div>
         </div>
         <div className="prose prose-blue max-w-none">
           <ReactMarkdown

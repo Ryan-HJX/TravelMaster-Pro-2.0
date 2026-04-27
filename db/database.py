@@ -46,7 +46,7 @@ async def init_db():
         """)
         
         await db.commit()
-        print("✅ 数据库初始化完成")
+        print("[OK] 数据库初始化完成")
 
 
 async def get_user_preferences(user_id: str) -> dict:

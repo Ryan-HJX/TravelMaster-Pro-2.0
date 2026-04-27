@@ -10,16 +10,32 @@ from agents.workflow import create_travel_graph
 from db.database import init_db
 import uvicorn
 import asyncio
+from contextlib import asynccontextmanager
+
+# 全局工作流实例
+graph = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    服务生命周期管理：启动时初始化数据库和编译工作流。
+    """
+    global graph
+    await init_db()
+    graph = create_travel_graph()
+    print("[OK] TravelMaster Agent 服务已启动")
+    yield
+    print("[OK] TravelMaster Agent 服务已关闭")
+
 
 # 初始化 FastAPI 应用
 app = FastAPI(
     title="TravelMaster Agent API",
     description="AI 智能旅游规划 Agent 核心服务",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
-
-# 全局工作流实例
-graph = None
 
 
 class PlanRequest(BaseModel):
@@ -48,15 +64,6 @@ class PlanResponse(BaseModel):
     waypoints: list = []
 
 
-@app.on_event("startup")
-async def startup_event():
-    """
-    服务启动时初始化数据库和编译工作流。
-    """
-    global graph
-    await init_db()
-    graph = create_travel_graph()
-    print("✅ TravelMaster Agent 服务已启动")
 
 
 @app.post("/api/v1/plan", response_model=PlanResponse)
@@ -99,7 +106,7 @@ async def plan_trip(request: PlanRequest):
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
-        print(f"❌ 发生严重错误: {str(e)}")
+        print(f"[ERROR] 发生严重错误: {str(e)}")
         print(error_trace)
         raise HTTPException(status_code=500, detail=f"内部服务器错误: {str(e)}")
 

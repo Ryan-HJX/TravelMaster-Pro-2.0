@@ -40,6 +40,10 @@ async def researcher_node(state: TravelState) -> dict:
             print(f"  [{i+1}/{len(plan_steps)}] 正在搜索: {step}")
             result = run_search(step)
             
+            # 确保 result 是字符串，防止 re.findall 报错
+            if not isinstance(result, str):
+                result = str(result)
+
             # 1. 尝试提取搜索结果中的 URL (DuckDuckGo 的结果格式通常包含 link: URL)
             urls = re.findall(r'link: (https?://[^\],]+)', result)
             
@@ -56,12 +60,14 @@ async def researcher_node(state: TravelState) -> dict:
                     if scraped_content:
                         result += f"\n--- 来自网页 {url} 的深度详情 ---\n{scraped_content}\n"
 
-            # 3. 如果结果还是太短，尝试宽泛搜索重试
-            if len(result) < 100:
-                refined_query = step.split("site:")[0] + " 旅游 攻略 景点 餐厅 推荐"
-                print(f"  [重试] 搜索信息不足，尝试宽泛搜索: {refined_query}")
+            # 3. 如果结果还是太短，或者包含明显的错误，尝试进行更宽泛的城市概况搜索
+            if len(result) < 500 or "搜索结果为空" in result:
+                # 提取地名（第一个词通常是地名）
+                city_name = step.split()[0] if step.split() else ""
+                refined_query = f"{city_name} 旅游全攻略 必去景点 必吃餐厅 推荐 2026"
+                print(f"  [深度补充] 搜索信息不足，尝试宽泛搜索: {refined_query}")
                 refined_result = run_search(refined_query)
-                result += f"\n补充搜索结果: {refined_result}"
+                result += f"\n--- 深度补充搜索结果 ---\n{refined_result}"
             
             research_results.append(f"任务: {step}\n结果: {result}\n---")
         except Exception as e:

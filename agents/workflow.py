@@ -29,7 +29,7 @@ def should_regenerate(state: TravelState) -> str:
         return "itinerary_generator"
     else:
         # 如果发现了矛盾，返回 Planner 重新拆解任务或调整方向
-        print(f"⚠️ 检测到逻辑矛盾，正在返回 Planner 重新规划...")
+        print(f"[WARN] 检测到逻辑矛盾，正在返回 Planner 重新规划...")
         return "planner"
 
 
@@ -81,5 +81,5 @@ def create_travel_graph():
 
     # 5. 编译工作流
     app = workflow.compile()
-    print("🚀 TravelMaster 工作流已编译完成")
+    print("[OK] TravelMaster 工作流已编译完成")
     return app

@@ -27,11 +27,37 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 顶部导航栏 */}
-      <header className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
-        <div className="container mx-auto px-6 py-8 relative z-10">
-          <h1 className="text-4xl font-extrabold tracking-tight mb-2">🌍 TravelMaster</h1>
-          <p className="text-blue-100/90 text-lg font-medium tracking-wide">AI 智能旅游规划 · 发现地道的美食与美景</p>
+      <header className="relative bg-white border-b border-gray-100 overflow-hidden">
+        {/* 背景装饰：流光溢彩的微妙渐变 */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-10 pointer-events-none">
+          <div className="absolute -top-1/2 -left-1/4 w-[100%] h-[200%] bg-gradient-to-br from-blue-400 to-purple-400 rounded-full blur-[120px] animate-pulse"></div>
+          <div className="absolute -bottom-1/2 -right-1/4 w-[80%] h-[150%] bg-gradient-to-tr from-indigo-300 to-pink-300 rounded-full blur-[100px]"></div>
+        </div>
+
+        <div className="container mx-auto px-8 py-10 relative z-10 text-center lg:text-left flex flex-col lg:flex-row items-center justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center justify-center lg:justify-start space-x-3 mb-1">
+              <span className="text-4xl">🌍</span>
+              <h1 className="text-4xl lg:text-5xl font-black text-gray-900 tracking-tighter m-0 bg-clip-text text-transparent bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-900">
+                TravelMaster
+              </h1>
+            </div>
+            <p className="text-gray-500 text-lg lg:text-xl font-medium tracking-tight">
+              <span className="text-blue-600 font-bold">AI</span> 智能旅游规划 · 发现地道的美食与美景
+            </p>
+          </div>
+          
+          <div className="hidden lg:flex items-center space-x-6 text-sm font-medium text-gray-400">
+            <div className="flex flex-col items-end">
+              <span className="text-gray-900 font-bold">Real-time Search</span>
+              <span>集成 Tavily 高级检索</span>
+            </div>
+            <div className="w-px h-8 bg-gray-200"></div>
+            <div className="flex flex-col items-end">
+              <span className="text-gray-900 font-bold">Smart Itinerary</span>
+              <span>LangGraph 工作流引擎</span>
+            </div>
+          </div>
         </div>
       </header>
 
