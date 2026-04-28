@@ -43,7 +43,7 @@ export const useTravelPlanner = () => {
    */
   const fetchHistory = useCallback(async (userId: string) => {
     try {
-      const historyList = await getHistory(userId);
+      const historyList = await getHistory();
       setHistory(historyList || []);
     } catch (err: any) {
       console.error('获取历史记录失败:', err);

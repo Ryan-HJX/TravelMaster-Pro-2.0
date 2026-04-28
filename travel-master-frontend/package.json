@@ -12,11 +12,14 @@
   "dependencies": {
     "@amap/amap-jsapi-loader": "^1.0.1",
     "axios": "^1.15.2",
+    "framer-motion": "^12.38.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
+    "lucide-react": "^1.11.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.14.2",
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
