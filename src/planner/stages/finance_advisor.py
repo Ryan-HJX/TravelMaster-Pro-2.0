@@ -73,8 +73,13 @@ async def call_yingmi_mcp(prompt: str, instructions: str | None = None) -> dict[
         }
 
 
-def calculate_budget(intent: TravelIntent) -> dict[str, Any]:
-    """Calculate travel budget based on intent parameters."""
+def calculate_budget(intent: TravelIntent, transport_cost: int = 0) -> dict[str, Any]:
+    """Calculate travel budget based on intent parameters.
+    
+    Args:
+        intent: 旅行意图
+        transport_cost: 大交通费用(往返总费用)
+    """
     budget_map = {
         "low": {"daily": 300, "description": "经济型"},
         "medium": {"daily": 800, "description": "舒适型"},
@@ -83,24 +88,29 @@ def calculate_budget(intent: TravelIntent) -> dict[str, Any]:
 
     budget_info = budget_map.get(intent.budget, budget_map["medium"])
     daily_base = budget_info["daily"]
-    total_est = daily_base * intent.days
+    local_total = daily_base * intent.days  # 当地消费总额
+    
+    # 总预算 = 当地消费 + 大交通费用
+    grand_total = local_total + transport_cost
 
-    # Calculate breakdown
-    accommodation = int(total_est * 0.35)  # 35% for accommodation
-    food = int(total_est * 0.25)  # 25% for food
-    transport = int(total_est * 0.20)  # 20% for transport
-    activities = int(total_est * 0.15)  # 15% for activities
-    emergency = int(total_est * 0.05)  # 5% emergency buffer
+    # Calculate breakdown (基于当地消费计算比例)
+    accommodation = int(local_total * 0.35)  # 35% for accommodation
+    food = int(local_total * 0.25)  # 25% for food
+    local_transport = int(local_total * 0.20)  # 20% for local transport
+    activities = int(local_total * 0.15)  # 15% for activities
+    emergency = int(local_total * 0.05)  # 5% emergency buffer
 
     return {
-        "total_budget": f"¥{total_est:,}",
+        "total_budget": f"¥{grand_total:,}",
+        "local_spending": f"¥{local_total:,}",  # 新增：当地消费
+        "intercity_transport": f"¥{transport_cost:,}" if transport_cost > 0 else "包含在总预算中",  # 新增：大交通
         "daily_average": f"¥{daily_base:,}",
         "budget_level": intent.budget.upper(),
         "budget_description": budget_info["description"],
         "breakdown": {
             "accommodation": {"amount": f"¥{accommodation:,}", "percentage": 35, "description": "住宿费用"},
             "food": {"amount": f"¥{food:,}", "percentage": 25, "description": "餐饮费用"},
-            "transport": {"amount": f"¥{transport:,}", "percentage": 20, "description": "交通费用"},
+            "transport": {"amount": f"¥{local_transport:,}", "percentage": 20, "description": "市内交通费用"},
             "activities": {"amount": f"¥{activities:,}", "percentage": 15, "description": "景点门票及活动"},
             "emergency": {"amount": f"¥{emergency:,}", "percentage": 5, "description": "应急备用金"}
         }
@@ -192,7 +202,14 @@ def generate_cash_reserve_recommendation(budget_info: dict) -> dict[str, Any]:
     }
 
 
-async def analyze_finance(intent: TravelIntent, pois: list[Any]) -> dict[str, Any]:
+async def analyze_finance(intent: TravelIntent, pois: list[Any], transport_cost: int = 0) -> dict[str, Any]:
+    """分析旅行资金规划
+    
+    Args:
+        intent: 旅行意图
+        pois: POI列表
+        transport_cost: 大交通费用(往返总费用)
+    """
     """Analyze travel finance using Yingmi Finance MCP and local calculations."""
 
     # Step 1: Calculate budget locally

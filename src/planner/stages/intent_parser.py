@@ -24,7 +24,10 @@ INTENT_INSTRUCTIONS = """\
   "interests": ["文化", "美食", ...],
   "travel_style": "relaxed|balanced|intensive",
   "crowd_type": "solo|couple|family|friends|elderly",
-  "transport_preference": "walking|public|driving|mixed"
+  "transport_preference": "walking|public|driving|mixed",
+  "departure_city": "出发城市（如果用户提到从哪里出发）",
+  "start_date": "开始日期 YYYY-MM-DD（如果用户提供）",
+  "end_date": "结束日期 YYYY-MM-DD（如果用户提供）"
 }
 """
 
