@@ -10,6 +10,7 @@ public record ItineraryResponse(
         String riskTips,
         String renderedMarkdown,
         String structuredContent,
+        String financeSummary,
         LocalDateTime publishedAt,
         List<ItineraryItemResponse> items
 ) {

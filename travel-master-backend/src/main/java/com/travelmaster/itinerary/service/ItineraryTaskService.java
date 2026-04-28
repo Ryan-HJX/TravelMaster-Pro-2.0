@@ -82,7 +82,13 @@ public class ItineraryTaskService {
         this.notificationService = notificationService;
         this.rankingService = rankingService;
         this.behaviorEventService = behaviorEventService;
-        this.pythonWebClient = WebClient.builder().baseUrl(properties.getAi().getBaseUrl()).build();
+        
+        // Safe initialization of WebClient with null checks
+        String baseUrl = "http://localhost:8000"; // Default fallback
+        if (properties != null && properties.getAi() != null && properties.getAi().getBaseUrl() != null) {
+            baseUrl = properties.getAi().getBaseUrl();
+        }
+        this.pythonWebClient = WebClient.builder().baseUrl(baseUrl).build();
     }
 
     @Transactional
@@ -133,6 +139,7 @@ public class ItineraryTaskService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(cacheNames = {"postFeed", "hotItineraries", "creatorRanking"}, allEntries = true)
     public PostResponse publish(String userId, String itineraryId, PublishItineraryRequest request) {
         Itinerary itinerary = itineraryRepository.findByIdAndUserId(itineraryId, userId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "itinerary not found"));
@@ -241,25 +248,35 @@ public class ItineraryTaskService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(cacheNames = {"postFeed", "hotItineraries", "creatorRanking"}, allEntries = true)
     public void deleteItinerary(String userId, String itineraryId) {
         Itinerary itinerary = itineraryRepository.findByIdAndUserId(itineraryId, userId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "itinerary not found"));
         
-        // 1. 先删除关联的行程项（itinerary_items → itineraries）
+        // 1. 如果行程已发布，先删除对应的 post 记录（解除外键约束）
+        postRepository.findByItineraryId(itineraryId).ifPresent(post -> {
+            // 清除排行榜数据
+            rankingService.removePost(post);
+            // 删除点赞、收藏、评论等关联数据
+            behaviorEventService.log(userId, "POST_DELETED", "post", post.getId(), null);
+            postRepository.delete(post);
+        });
+        
+        // 2. 删除关联的行程项（itinerary_items → itineraries）
         itineraryItemRepository.deleteByItineraryId(itineraryId);
         
-        // 2. 保存 taskId 用于后续删除
+        // 3. 保存 taskId 用于后续删除
         String taskId = itinerary.getTaskId();
         
-        // 3. 删除行程主记录（必须在删除任务之前，因为 itineraries.task_id 引用了任务表）
+        // 4. 删除行程主记录（必须在删除任务之前，因为 itineraries.task_id 引用了任务表）
         itineraryRepository.delete(itinerary);
         
-        // 4. 最后删除关联的任务记录（此时没有行程引用该任务了）
+        // 5. 最后删除关联的任务记录（此时没有行程引用该任务了）
         if (taskId != null) {
             taskRepository.deleteById(taskId);
         }
         
-        // 5. 记录行为事件
+        // 6. 记录行为事件
         behaviorEventService.log(userId, "ITINERARY_DELETED", "itinerary", itineraryId, null);
     }
 
@@ -371,6 +388,7 @@ public class ItineraryTaskService {
                 itinerary.getRiskTips(),
                 itinerary.getRenderedMarkdown(),
                 itinerary.getStructuredContent(),
+                itinerary.getFinanceSummary(),
                 itinerary.getPublishedAt(),
                 items
         );

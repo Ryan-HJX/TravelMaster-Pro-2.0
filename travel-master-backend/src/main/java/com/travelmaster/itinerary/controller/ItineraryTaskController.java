@@ -32,6 +32,7 @@ public class ItineraryTaskController {
                                                 @Valid @RequestBody CreateTaskRequest request,
                                                 @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
                                                 HttpServletRequest httpRequest) {
+        System.out.println(">>> [FRONTEND REQUEST] Received /api/itinerary-tasks for user: " + currentUser.userId() + " input: " + request.userInput());
         return ApiResponse.success(itineraryTaskService.createTask(
                 currentUser.userId(),
                 request,
@@ -46,10 +47,30 @@ public class ItineraryTaskController {
         return ApiResponse.success(itineraryTaskService.getTask(currentUser.userId(), taskId));
     }
 
+    @GetMapping("/itineraries")
+    public ApiResponse<java.util.List<com.travelmaster.itinerary.dto.ItineraryResponse>> getHistory(@AuthenticationPrincipal AuthenticatedUser currentUser) {
+        java.util.List<com.travelmaster.itinerary.dto.ItineraryResponse> history = itineraryTaskService.history(currentUser.userId());
+        System.out.println(">>> [HISTORY] User: " + currentUser.userId() + " found " + history.size() + " records");
+        return ApiResponse.success(history);
+    }
+
+    @GetMapping("/itineraries/{id}")
+    public ApiResponse<com.travelmaster.itinerary.dto.ItineraryResponse> getItinerary(@AuthenticationPrincipal AuthenticatedUser currentUser,
+                                                                                       @PathVariable String id) {
+        return ApiResponse.success(itineraryTaskService.getItinerary(currentUser.userId(), id));
+    }
+
     @PostMapping("/itineraries/{id}/publish")
     public ApiResponse<PostResponse> publish(@AuthenticationPrincipal AuthenticatedUser currentUser,
                                              @PathVariable String id,
                                              @Valid @RequestBody PublishItineraryRequest request) {
         return ApiResponse.success(itineraryTaskService.publish(currentUser.userId(), id, request));
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/itineraries/{id}")
+    public ApiResponse<Void> deleteItinerary(@AuthenticationPrincipal AuthenticatedUser currentUser,
+                                             @PathVariable String id) {
+        itineraryTaskService.deleteItinerary(currentUser.userId(), id);
+        return ApiResponse.success(null);
     }
 }
