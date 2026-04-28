@@ -1,7 +1,2 @@
-com\travelmaster\service\ItineraryService.class
-com\travelmaster\entity\Itinerary.class
+META-INF\spring-configuration-metadata.json
 com\travelmaster\TravelMasterApplication.class
-com\travelmaster\controller\ItineraryController.class
-com\travelmaster\dto\PlanResponse.class
-com\travelmaster\repository\ItineraryRepository.class
-com\travelmaster\dto\PlanRequest.class
