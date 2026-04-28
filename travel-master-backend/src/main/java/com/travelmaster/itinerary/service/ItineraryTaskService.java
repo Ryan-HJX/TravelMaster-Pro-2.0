@@ -25,6 +25,7 @@ import com.travelmaster.ranking.service.RankingService;
 import com.travelmaster.social.dto.PostResponse;
 import com.travelmaster.social.entity.Post;
 import com.travelmaster.social.repository.PostRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.http.HttpStatus;
@@ -37,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class ItineraryTaskService {
     private final ItineraryGenerationTaskRepository taskRepository;
@@ -88,7 +90,16 @@ public class ItineraryTaskService {
         }
         try {
             return taskRepository.findByUserIdAndIdempotencyKey(userId, idempotencyKey)
-                    .map(this::toTaskResponse)
+                    .map(existingTask -> {
+                        if (existingTask.getStatus() == TaskStatus.FAILED) {
+                            existingTask.setStatus(TaskStatus.PENDING);
+                            existingTask.setFailureReason(null);
+                            ItineraryGenerationTask updated = taskRepository.save(existingTask);
+                            aiTaskPublisher.publish(updated, request);
+                            return toTaskResponse(updated);
+                        }
+                        return toTaskResponse(existingTask);
+                    })
                     .orElseGet(() -> createNewTask(userId, request, idempotencyKey));
         } finally {
             lock.unlock();
@@ -105,6 +116,12 @@ public class ItineraryTaskService {
         return itineraryRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
                 .map(this::toItineraryResponse)
                 .toList();
+    }
+
+    public ItineraryResponse getItinerary(String userId, String itineraryId) {
+        return itineraryRepository.findByIdAndUserId(itineraryId, userId)
+                .map(this::toItineraryResponse)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "itinerary not found"));
     }
 
     @Transactional
@@ -163,50 +180,79 @@ public class ItineraryTaskService {
         itinerary.setWeatherSummary(result.weatherSummary());
         itinerary.setFinanceSummary(result.financeSummary());
         itinerary.setPlanningScore(result.planningScore());
-        Itinerary savedItinerary = itineraryRepository.save(itinerary);
+        try {
+            Itinerary savedItinerary = itineraryRepository.save(itinerary);
 
-        if (result.days() != null) {
-            for (AiTaskResultRequest.DayPlan dayPlan : result.days()) {
-                if (dayPlan.items() == null || dayPlan.dayNumber() == null) {
-                    continue;
-                }
-                for (AiTaskResultRequest.PlanItem planItem : dayPlan.items()) {
-                    ItineraryItem item = new ItineraryItem();
-                    item.setItineraryId(savedItinerary.getId());
-                    item.setDayNumber(dayPlan.dayNumber());
-                    item.setSequenceNumber(planItem.sequenceNumber());
-                    item.setItemTitle(planItem.itemTitle());
-                    item.setActivityType(planItem.activityType());
-                    item.setAddress(planItem.address());
-                    item.setStartTime(planItem.startTime());
-                    item.setEndTime(planItem.endTime());
-                    if (planItem.transport() != null) {
-                        item.setTransportMode(planItem.transport().mode());
-                        item.setTransportDurationMinutes(planItem.transport().durationMinutes());
+            if (result.days() != null) {
+                for (AiTaskResultRequest.DayPlan dayPlan : result.days()) {
+                    if (dayPlan.items() == null || dayPlan.dayNumber() == null) {
+                        continue;
                     }
-                    item.setNotes(planItem.notes());
-                    itineraryItemRepository.save(item);
+                    for (AiTaskResultRequest.PlanItem planItem : dayPlan.items()) {
+                        ItineraryItem item = new ItineraryItem();
+                        item.setItineraryId(savedItinerary.getId());
+                        item.setDayNumber(dayPlan.dayNumber());
+                        item.setSequenceNumber(planItem.sequenceNumber());
+                        item.setItemTitle(planItem.itemTitle());
+                        item.setActivityType(planItem.activityType());
+                        item.setAddress(planItem.address());
+                        item.setStartTime(planItem.startTime());
+                        item.setEndTime(planItem.endTime());
+                        if (planItem.transport() != null) {
+                            item.setTransportMode(planItem.transport().mode());
+                            item.setTransportDurationMinutes(planItem.transport().durationMinutes());
+                        }
+                        item.setNotes(planItem.notes());
+                        itineraryItemRepository.save(item);
+                    }
                 }
             }
-        }
 
-        task.setStatus(TaskStatus.COMPLETED);
-        task.setCompletedAt(LocalDateTime.now());
-        task.setItineraryId(savedItinerary.getId());
-        task.setFailureReason(null);
-        task.setResultPayload(writeJson(result));
-        // 2.0 MCP observability
-        task.setModelProvider(result.modelProvider());
-        task.setModelName(result.modelName());
-        task.setMcpTrace(result.mcpTrace());
-        task.setToolCalls(result.toolCalls());
-        task.setFallbackUsed(Boolean.TRUE.equals(result.fallbackUsed()));
-        task.setPlanningScore(result.planningScore());
-        taskRepository.save(task);
-        notificationService.createNotification(task.getUserId(), null, NotificationType.TASK_COMPLETED,
-                "Itinerary is ready", result.summary(), "itinerary", savedItinerary.getId());
-        behaviorEventService.log(task.getUserId(), "TASK_COMPLETED", "task", task.getId(), Map.of("itineraryId", savedItinerary.getId()));
-        return toTaskResponse(task);
+            task.setStatus(TaskStatus.COMPLETED);
+            task.setCompletedAt(LocalDateTime.now());
+            task.setItineraryId(savedItinerary.getId());
+            task.setFailureReason(null);
+            task.setResultPayload(writeJson(result));
+            // 2.0 MCP observability
+            task.setModelProvider(result.modelProvider());
+            task.setModelName(result.modelName());
+            task.setMcpTrace(result.mcpTrace());
+            task.setToolCalls(result.toolCalls());
+            task.setFallbackUsed(Boolean.TRUE.equals(result.fallbackUsed()));
+            task.setPlanningScore(result.planningScore());
+            taskRepository.save(task);
+            
+            notificationService.createNotification(task.getUserId(), null, NotificationType.TASK_COMPLETED,
+                    "Itinerary is ready", result.summary(), "itinerary", savedItinerary.getId());
+            behaviorEventService.log(task.getUserId(), "TASK_COMPLETED", "task", task.getId(), Map.of("itineraryId", savedItinerary.getId()));
+            return toTaskResponse(task);
+        } catch (Exception e) {
+            log.error("!!! [DATABASE FATAL] Failed to save itinerary for task {}: {}", taskId, e.getMessage(), e);
+            throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "failed to save result: " + e.getMessage());
+        }
+    }
+
+    @Transactional
+    public void deleteItinerary(String userId, String itineraryId) {
+        Itinerary itinerary = itineraryRepository.findByIdAndUserId(itineraryId, userId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "itinerary not found"));
+        
+        // 1. 先删除关联的行程项（itinerary_items → itineraries）
+        itineraryItemRepository.deleteByItineraryId(itineraryId);
+        
+        // 2. 保存 taskId 用于后续删除
+        String taskId = itinerary.getTaskId();
+        
+        // 3. 删除行程主记录（必须在删除任务之前，因为 itineraries.task_id 引用了任务表）
+        itineraryRepository.delete(itinerary);
+        
+        // 4. 最后删除关联的任务记录（此时没有行程引用该任务了）
+        if (taskId != null) {
+            taskRepository.deleteById(taskId);
+        }
+        
+        // 5. 记录行为事件
+        behaviorEventService.log(userId, "ITINERARY_DELETED", "itinerary", itineraryId, null);
     }
 
     private TaskResponse createNewTask(String userId, CreateTaskRequest request, String idempotencyKey) {
