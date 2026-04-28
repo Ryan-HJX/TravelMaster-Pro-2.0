@@ -5,8 +5,8 @@ class Settings(BaseSettings):
     # ── Bailian (DashScope) ──────────────────────────────────────
     DASHSCOPE_API_KEY: str = ""
     BAILIAN_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    BAILIAN_MAIN_MODEL: str = "qwen3-plus"
-    BAILIAN_FLASH_MODEL: str = "qwen3-flash"
+    BAILIAN_MAIN_MODEL: str = "qwen-plus"
+    BAILIAN_FLASH_MODEL: str = "qwen-turbo"
     MODEL_PRIORITY: str = "cloud"  # "cloud" | "local"
 
     # ── Ollama (local fallback) ──────────────────────────────────

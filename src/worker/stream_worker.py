@@ -25,6 +25,7 @@ async def process_stream_tasks(travel_service: TravelService) -> None:
                     continue
                 for _, entries in messages:
                     for message_id, payload in entries:
+                        print(f"[DEBUG] Received payload from Redis: {payload}")
                         last_id = message_id
                         request = WorkerTaskRequest(
                             task_id=payload["taskId"],

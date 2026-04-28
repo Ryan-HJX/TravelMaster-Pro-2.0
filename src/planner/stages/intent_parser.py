@@ -36,6 +36,7 @@ async def parse_intent(user_input: str) -> TravelIntent:
         instructions=INTENT_INSTRUCTIONS,
     )
     text = result["output_text"].strip()
+    logger.info("Raw AI response for intent: %s", text[:200])
 
     # Try to extract JSON from the response
     try:

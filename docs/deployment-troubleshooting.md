@@ -88,3 +88,54 @@ docker-compose down -v
 docker volume prune -f
 ```
 然后再重新启动数据库容器。
+
+---
+
+## 5. Redis Stream 任务投递与消费失败
+
+### 现象
+Java 后端返回任务创建成功，但 Python AI 服务没有反应，或者报 `KeyError: 'taskId'`。
+
+### 原因
+1. **Java 未写入 Stream**：检查 `AiTaskPublisher` 是否被正确调用，以及 Redis 连接是否正常。
+2. **Payload 格式不匹配**：Java 发送的键名（如 `taskId`）必须与 Python `stream_worker.py` 中解析的键名完全一致。
+3. **Worker 异常中断**：如果 Python Worker 在处理某条消息时崩溃，可能会导致后续消息无法消费。
+
+### 解决方案
+*   在 Java 端增加日志打印，确认 `redisTemplate.opsForStream().add()` 执行成功。
+*   在 Python 端打印接收到的原始 Payload：`print(f"[DEBUG] Received payload: {payload}")`。
+*   使用 `XLEN travelmaster:ai:tasks` 检查 Redis 队列是否有积压。
+
+---
+
+## 6. LLM 模型配置与云端降级失效
+
+### 现象
+Python 终端持续输出 `bailian call failed, falling back to ollama`，且本地模型解析 JSON 失败（`parse failed`）。
+
+### 原因
+1. **模型名称错误**：阿里云百炼不支持非标准模型名（如 `qwen3.6-plus`），会导致 API 返回 `400 InvalidParameter`。
+2. **配置未重载**：修改 `.env` 后，如果没有彻底重启 Python 进程（关闭终端重开），`pydantic-settings` 可能仍在使用旧的环境变量或默认值。
+
+### 解决方案
+*   **使用标准模型名**：在 `.env` 和 `src/config/settings.py` 中统一使用 `qwen-turbo` 和 `qwen-plus`。
+*   **双重保险**：确保 `settings.py` 中的默认值也是正确的，防止 `.env` 读取失败时回退到错误模型。
+*   **彻底重启**：修改配置后，务必关闭当前终端窗口并重新运行 `uvicorn`。
+
+---
+
+## 7. Java 后端处理不完整 AI 结果时的 500 错误
+
+### 现象
+Python 调用 `/complete` 接口时，Java 报 `SQL Error: 1048, Column 'day_number' cannot be null`。
+
+### 原因
+当 AI 解析失败时，返回的行程数据中关键字段（如天数）为空。Java 代码在遍历保存时没有做空值校验，直接触发了数据库非空约束。
+
+### 解决方案
+在 `ItineraryTaskService.java` 中增加健壮性检查：
+```java
+if (dayPlan.items() == null || dayPlan.dayNumber() == null) {
+    continue; // 跳过无效数据，而不是让整个事务回滚
+}
+```

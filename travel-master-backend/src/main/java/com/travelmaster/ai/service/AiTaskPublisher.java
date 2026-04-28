@@ -27,6 +27,7 @@ public class AiTaskPublisher {
     }
 
     public void publish(ItineraryGenerationTask task, CreateTaskRequest request) {
+        System.out.println("[DEBUG] Publishing task to Redis Stream: " + properties.getRedis().getAiTaskStream() + " for taskId: " + task.getId());
         Map<String, String> payload = new LinkedHashMap<>();
         payload.put("taskId", task.getId());
         payload.put("userId", task.getUserId());
@@ -35,7 +36,14 @@ public class AiTaskPublisher {
         payload.put("userInput", task.getUserInput());
         payload.put("preferences", toJson(request.preferences()));
         payload.put("travelConstraints", toJson(request.travelConstraints()));
-        redisTemplate.opsForStream().add(MapRecord.create(properties.getRedis().getAiTaskStream(), payload));
+        try {
+            System.out.println("[DEBUG] Attempting to add record to Redis Stream...");
+            redisTemplate.opsForStream().add(MapRecord.create(properties.getRedis().getAiTaskStream(), payload));
+            System.out.println("[DEBUG] Successfully added record to Redis Stream!");
+        } catch (Exception e) {
+            System.err.println("[ERROR] Failed to publish task to Redis: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private String toJson(Object value) {

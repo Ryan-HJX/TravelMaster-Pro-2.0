@@ -167,7 +167,7 @@ public class ItineraryTaskService {
 
         if (result.days() != null) {
             for (AiTaskResultRequest.DayPlan dayPlan : result.days()) {
-                if (dayPlan.items() == null) {
+                if (dayPlan.items() == null || dayPlan.dayNumber() == null) {
                     continue;
                 }
                 for (AiTaskResultRequest.PlanItem planItem : dayPlan.items()) {
