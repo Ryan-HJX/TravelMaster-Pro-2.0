@@ -1,147 +1,118 @@
-"""Bailian (DashScope) Responses API client with MCP tool support."""
+"""Bailian (DashScope) client with extreme timeout and retry logic."""
 
 from __future__ import annotations
 
+import json
 import logging
 import time
+import asyncio
 from typing import Any
 
-from openai import AsyncOpenAI
-
+import httpx
 from src.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 
 class BailianClient:
-    """Thin wrapper around the OpenAI-compatible DashScope Responses API."""
+    """Wrapper for DashScope Generation API with extreme reliability."""
 
-    def __init__(
-        self,
-        api_key: str | None = None,
-        base_url: str | None = None,
-        main_model: str | None = None,
-        flash_model: str | None = None,
-    ) -> None:
-        self._api_key = api_key or settings.DASHSCOPE_API_KEY
-        self._base_url = base_url or settings.BAILIAN_BASE_URL
-        self.main_model = main_model or settings.BAILIAN_MAIN_MODEL
-        self.flash_model = flash_model or settings.BAILIAN_FLASH_MODEL
-
-        self._client = AsyncOpenAI(
-            api_key=self._api_key,
-            base_url=self._base_url,
-        )
-
-    # ── Core call ────────────────────────────────────────────────
+    def __init__(self) -> None:
+        self._api_key = settings.DASHSCOPE_API_KEY
+        self._url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
+        self.main_model = settings.BAILIAN_MAIN_MODEL
+        self.flash_model = settings.BAILIAN_FLASH_MODEL
 
     async def create(
         self,
         *,
         model: str | None = None,
-        input: str | list[dict[str, Any]],  # noqa: A002
+        input: str,
         tools: list[dict[str, Any]] | None = None,
         instructions: str | None = None,
         temperature: float = 0.7,
-        max_output_tokens: int = 8192,
-        extra_params: dict[str, Any] | None = None,
+        retries: int = 3
     ) -> dict[str, Any]:
-        """Call Responses API and return parsed result.
-
-        Returns a dict with keys:
-            output_text: str
-            tool_calls: list[dict]  — MCP / function calls made
-            usage: dict
-            latency_ms: int
-        """
+        """Call DashScope with retries and massive timeout."""
         model = model or self.main_model
-        start = time.monotonic()
-
-        kwargs: dict[str, Any] = {
+        
+        payload = {
             "model": model,
-            "input": input,
-            "temperature": temperature,
-            "max_output_tokens": max_output_tokens,
+            "input": {"messages": []},
+            "parameters": {"result_format": "message", "temperature": temperature}
         }
-        if tools:
-            kwargs["tools"] = tools
         if instructions:
-            kwargs["instructions"] = instructions
-        if extra_params:
-            kwargs.update(extra_params)
+            payload["input"]["messages"].append({"role": "system", "content": instructions})
+        payload["input"]["messages"].append({"role": "user", "content": input})
 
-        response = await self._client.responses.create(**kwargs)
-        latency_ms = int((time.monotonic() - start) * 1000)
+        if tools:
+            payload["tools"] = tools
 
-        # Parse output ─ the response object has .output list
-        output_text = getattr(response, "output_text", "")
-
-        # Collect tool calls
-        tool_calls: list[dict[str, Any]] = []
-        for item in getattr(response, "output", []):
-            item_type = getattr(item, "type", "")
-            if item_type in ("mcp_call", "function_call", "mcp_list_tools"):
-                tool_calls.append({
-                    "type": item_type,
-                    "name": getattr(item, "name", ""),
-                    "arguments": getattr(item, "arguments", ""),
-                    "server_label": getattr(item, "server_label", ""),
-                })
-            elif item_type in ("mcp_call_output", "function_call_output"):
-                tool_calls.append({
-                    "type": item_type,
-                    "output": getattr(item, "output", ""),
-                })
-
-        usage_obj = getattr(response, "usage", None)
-        usage = {
-            "input_tokens": getattr(usage_obj, "input_tokens", 0),
-            "output_tokens": getattr(usage_obj, "output_tokens", 0),
-            "total_tokens": getattr(usage_obj, "total_tokens", 0),
-        } if usage_obj else {}
-
-        logger.info(
-            "bailian response: model=%s latency=%dms tokens=%s tools=%d",
-            model, latency_ms, usage.get("total_tokens", "?"), len(tool_calls),
-        )
-
-        return {
-            "output_text": output_text,
-            "tool_calls": tool_calls,
-            "usage": usage,
-            "latency_ms": latency_ms,
-            "model": model,
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json",
+            "X-DashScope-SSE": "disable"
         }
 
-    # ── Convenience: main model with MCP ─────────────────────────
+        # Use an even larger timeout (5 minutes) for extremely poor network conditions
+        timeout = httpx.Timeout(300.0, connect=30.0, read=300.0)
+        
+        for attempt in range(retries):
+            start = time.monotonic()
+            async with httpx.AsyncClient(timeout=timeout, trust_env=True) as client:
+                try:
+                    logger.info(">>> [LLM] Attempt %d/%d calling DashScope (%s)...", attempt + 1, retries, model)
+                    response = await client.post(self._url, json=payload, headers=headers)
+                    
+                    if response.status_code == 429: # Rate limit
+                        logger.warning(">>> [LLM] Rate limited, waiting 5s...")
+                        await asyncio.sleep(5)
+                        continue
+                        
+                    response.raise_for_status()
+                    data = response.json()
+                    
+                    output = data.get("output", {})
+                    choices = output.get("choices", [])
+                    output_text = ""
+                    tool_calls = []
+                    
+                    if choices:
+                        message = choices[0].get("message", {})
+                        output_text = message.get("content", "")
+                        if "tool_calls" in message:
+                            for tc in message["tool_calls"]:
+                                tool_calls.append({
+                                    "type": tc.get("type", "function"),
+                                    "name": tc.get("function", {}).get("name", "") if "function" in tc else tc.get("name", ""),
+                                    "arguments": tc.get("function", {}).get("arguments", "") if "function" in tc else tc.get("arguments", ""),
+                                    "server_label": tc.get("server_label", "")
+                                })
 
-    async def plan_with_mcp(
-        self,
-        *,
-        prompt: str,
-        mcp_tools: list[dict[str, Any]],
-        instructions: str | None = None,
-    ) -> dict[str, Any]:
-        """Shortcut for main-model planning with MCP tools attached."""
-        return await self.create(
-            model=self.main_model,
-            input=prompt,
-            tools=mcp_tools,
-            instructions=instructions,
-        )
+                    latency = int((time.monotonic() - start) * 1000)
+                    logger.info(">>> [LLM SUCCESS] Latency: %dms", latency)
+                    
+                    return {
+                        "output_text": output_text,
+                        "tool_calls": tool_calls,
+                        "usage": data.get("usage", {}),
+                        "latency_ms": latency,
+                        "model": model,
+                    }
+                    
+                except httpx.ReadTimeout:
+                    logger.error("!!! [LLM TIMEOUT] Read timeout on attempt %d. Network is very slow.", attempt + 1)
+                    if attempt == retries - 1: raise
+                    await asyncio.sleep(2)
+                except Exception as e:
+                    logger.error("!!! [LLM ERROR] %s: %s", type(e).__name__, str(e))
+                    if attempt == retries - 1: raise
+                    await asyncio.sleep(2)
+        
+        raise Exception("Failed after maximum retries")
 
-    # ── Convenience: flash model for lightweight extraction ──────
+    async def plan_with_mcp(self, prompt: str, mcp_tools: list[dict], instructions: str | None = None) -> dict[str, Any]:
+        return await self.create(input=prompt, tools=mcp_tools, instructions=instructions)
 
-    async def extract(
-        self,
-        *,
-        prompt: str,
-        instructions: str | None = None,
-    ) -> dict[str, Any]:
-        """Shortcut for flash-model lightweight extraction / summarization."""
-        return await self.create(
-            model=self.flash_model,
-            input=prompt,
-            instructions=instructions,
-            max_output_tokens=4096,
-        )
+    async def extract(self, prompt: str, instructions: str | None = None) -> dict[str, Any]:
+        return await self.create(model=self.flash_model, input=prompt, instructions=instructions)

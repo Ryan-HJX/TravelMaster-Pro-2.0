@@ -6,54 +6,33 @@ from src.config.settings import settings
 
 
 def build_amap_mcp_tool() -> dict:
-    """Build the Amap Maps MCP tool config for Bailian Responses API.
-
-    Uses SSE protocol to connect to the Amap MCP Server (either Bailian-hosted
-    or self-deployed).
-    """
-    tool: dict = {
+    """Build the Amap Maps MCP tool config."""
+    return {
         "type": "mcp",
         "server_label": "amap-maps",
         "server_description": (
-            "高德地图 MCP 服务：地理编码、逆地理编码、POI 搜索、"
-            "周边搜索、路径规划（步行/驾车/公交）、天气查询。"
+            "高德地图服务：用于地理编码（获取经纬度）、搜索景点、"
+            "规划路径（驾车、步行、公交）以及查询天气。"
         ),
+        "server_url": settings.AMAP_MCP_URL,
+        "api_key": settings.AMAP_API_KEY
     }
-    if settings.AMAP_MCP_URL:
-        # SSE mode — Bailian hosted or self-deployed endpoint
-        tool["server_protocol"] = "sse"
-        tool["server_url"] = settings.AMAP_MCP_URL
-    else:
-        # stdio mode — local npx fallback
-        tool["server_protocol"] = "stdio"
-        tool["command"] = "npx"
-        tool["args"] = ["-y", "@amap/amap-maps-mcp-server"]
-        tool["env"] = {"AMAP_MAPS_API_KEY": settings.AMAP_API_KEY}
-
-    return tool
 
 
 def build_yingmi_mcp_tool() -> dict:
-    """Build the Yingmi Finance MCP tool config."""
-    tool: dict = {
+    """Build the Yingmi Finance (Qieman) MCP tool config."""
+    return {
         "type": "mcp",
-        "server_label": "yingmi-finance",
+        "server_label": "qieman",
         "server_description": (
-            "盈米金融数据 MCP：基金流动性查询、赎回时点提醒、"
-            "低风险现金管理产品分类、资金规划辅助。"
+            "盈米金融数据 MCP：用于查询旅游预算相关的基金流动性、"
+            "资金赎回建议以及低风险资金管理。"
         ),
+        "server_url": settings.YINGMI_MCP_URL,
+        "headers": {
+            "x-api-key": settings.YINGMI_API_KEY
+        }
     }
-    if settings.YINGMI_MCP_URL:
-        tool["server_protocol"] = "sse"
-        tool["server_url"] = settings.YINGMI_MCP_URL
-        if settings.YINGMI_API_KEY:
-            tool["headers"] = {"Authorization": f"Bearer {settings.YINGMI_API_KEY}"}
-    else:
-        # Mock / placeholder — will be replaced when endpoint is available
-        tool["server_protocol"] = "sse"
-        tool["server_url"] = "http://localhost:9100/sse"
-
-    return tool
 
 
 def get_planning_tools() -> list[dict]:

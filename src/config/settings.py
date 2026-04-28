@@ -25,8 +25,8 @@ class Settings(BaseSettings):
     JAVA_CALLBACK_BASE_URL: str = "http://localhost:8080/api/internal/ai/tasks"
     INTERNAL_API_TOKEN: str = "travelmaster-internal-token"
     ENABLE_STREAM_WORKER: bool = True
-    STREAM_START_ID: str = "$"
-    EXTERNAL_TIMEOUT_SECONDS: float = 30.0
+    STREAM_START_ID: str = "0"
+    EXTERNAL_TIMEOUT_SECONDS: float = 60.0
     MOCK_EXTERNAL: bool = False
 
     model_config = SettingsConfigDict(

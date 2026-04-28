@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ── Trace / Observability ────────────────────────────────────────
@@ -171,6 +171,13 @@ class StructuredItinerary(BaseModel):
     model_provider: str = ""
     mcp_tool_calls: list[MCPToolCall] = Field(default_factory=list)
     finance_summary: dict[str, Any] | None = None
+
+    @field_validator("risk_tips", mode="before")
+    @classmethod
+    def normalize_risk_tips(cls, v: Any) -> str:
+        if isinstance(v, list):
+            return " ".join([str(item) for item in v])
+        return str(v) if v is not None else ""
 
 
 # ── API Request Models ───────────────────────────────────────────
