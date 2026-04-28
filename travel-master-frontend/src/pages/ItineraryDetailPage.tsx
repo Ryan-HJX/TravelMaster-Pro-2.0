@@ -3,11 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, Map as MapIcon, Route, Wallet, Cloud, 
-  Share2, Download, Star, MapPin, Calendar, Clock
+  Share2, Download, Star, MapPin, Calendar, Clock, CheckCircle2, Loader2
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { getTask, getItinerary, type TaskResponse, type ItineraryResponse } from '../services/api';
+import { getTask, getItinerary, type TaskResponse, type ItineraryResponse, type ProgressStep } from '../services/api';
 import ItineraryMapView from '../components/ItineraryMapView';
 import RouteAlternatives from '../components/RouteAlternatives';
 import TravelBudgetAdvisor from '../components/TravelBudgetAdvisor';
@@ -28,8 +28,88 @@ const ItineraryDetailPage: React.FC = () => {
   const [itinerary, setItinerary] = useState<ItineraryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [taskStatus, setTaskStatus] = useState<string>('');
+  const [taskProgress, setTaskProgress] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'map' | 'route' | 'finance'>('map');
+  const [showNotifications, setShowNotifications] = useState(false);
   const navigate = useNavigate();
+
+  // Handle export to PDF
+  const handleExportPDF = () => {
+    if (!itinerary) return;
+    
+    // Create a print-friendly version
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('请允许弹出窗口以导出PDF');
+      return;
+    }
+
+    const content = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${itinerary.title}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
+          h1 { color: #ea580c; border-bottom: 3px solid #fed7aa; padding-bottom: 10px; }
+          h2 { color: #c2410c; margin-top: 30px; }
+          .summary { background: #fff7ed; padding: 20px; border-radius: 10px; margin: 20px 0; }
+          .meta { color: #666; font-size: 14px; margin-bottom: 20px; }
+          pre { background: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        </style>
+      </head>
+      <body>
+        <h1>${itinerary.title}</h1>
+        <div class="meta">生成时间: ${new Date().toLocaleDateString('zh-CN')}</div>
+        <div class="summary">
+          <h2>行程概览</h2>
+          <p>${itinerary.summary}</p>
+        </div>
+        <h2>详细行程</h2>
+        <div>${itinerary.renderedMarkdown.replace(/\n/g, '<br>')}</div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(content);
+    printWindow.document.close();
+    printWindow.focus();
+    
+    // Wait for content to load, then print
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  };
+
+  // Handle share
+  const handleShare = async () => {
+    if (!itinerary) return;
+
+    const shareData = {
+      title: itinerary.title,
+      text: itinerary.summary,
+      url: window.location.href
+    };
+
+    // Try Web Share API first (mobile devices)
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (err) {
+        console.log('Web Share API failed:', err);
+      }
+    }
+
+    // Fallback: copy to clipboard
+    try {
+      await navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}\n${shareData.url}`);
+      alert('行程链接已复制到剪贴板！');
+    } catch (err) {
+      // Final fallback: show URL
+      prompt('复制以下链接分享行程：', window.location.href);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -47,7 +127,11 @@ const ItineraryDetailPage: React.FC = () => {
             setLoading(false);
           } else {
             setTaskStatus(task.status);
-            setTimeout(fetchData, 3000);
+            // Update progress if available
+            if (task.progress) {
+              setTaskProgress(task.progress);
+            }
+            setTimeout(fetchData, 2000);
           }
         } catch (err) {
           // If task not found, try as direct itinerary (for history)
@@ -65,6 +149,9 @@ const ItineraryDetailPage: React.FC = () => {
   }, [id]);
 
   if (loading && !itinerary) {
+    const completedSteps = taskProgress?.steps.filter((s: ProgressStep) => s.status === 'completed').length ?? 0;
+    const totalSteps = taskProgress?.steps.length ?? 8;
+    
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50 p-6">
         <motion.div 
@@ -75,18 +162,66 @@ const ItineraryDetailPage: React.FC = () => {
           <MapIcon size={40} />
         </motion.div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">AI 正在处理您的请求</h2>
-        <p className="text-gray-600 mb-8 text-center max-w-sm">
-          正在从历史库中调取或调用高德/盈米进行实时分析...
+        <p className="text-gray-600 mb-8 text-center max-w-md">
+          {taskProgress?.currentStep ? (
+            <span className="text-orange-600 font-medium">{taskProgress.currentStep}</span>
+          ) : (
+            '正在从历史库中调取或调用高德/盈米进行实时分析...'
+          )}
         </p>
-        <div className="w-full max-w-md h-2 bg-orange-200 rounded-full overflow-hidden">
+        
+        {/* Progress Bar */}
+        <div className="w-full max-w-md h-3 bg-orange-200 rounded-full overflow-hidden mb-6">
           <motion.div 
             initial={{ width: 0 }}
-            animate={{ width: '100%' }}
-            transition={{ duration: 15 }}
+            animate={{ width: `${taskProgress?.overallProgress || 0}%` }}
+            transition={{ duration: 0.5 }}
             className="h-full premium-gradient"
           />
         </div>
-        <div className="mt-4 text-xs font-mono text-gray-500 uppercase tracking-widest">STATUS: {taskStatus || 'FETCHING'}</div>
+        
+        {/* Steps List */}
+        <div className="w-full max-w-lg space-y-2 mb-6">
+          {taskProgress?.steps.map((step: ProgressStep, index: number) => (
+            <motion.div
+              key={step.stepId}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
+                step.status === 'processing' 
+                  ? 'bg-orange-50 border-orange-300 shadow-sm' 
+                  : step.status === 'completed'
+                  ? 'bg-green-50 border-green-200'
+                  : 'bg-white border-slate-200 opacity-60'
+              }`}
+            >
+              <div className="flex-shrink-0">
+                {step.status === 'completed' ? (
+                  <CheckCircle2 className="text-green-600" size={20} />
+                ) : step.status === 'processing' ? (
+                  <Loader2 className="text-orange-600 animate-spin" size={20} />
+                ) : (
+                  <div className="w-5 h-5 rounded-full border-2 border-slate-300" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className={`text-sm font-medium ${
+                  step.status === 'processing' ? 'text-orange-700' : 'text-gray-700'
+                }`}>
+                  {step.stepName}
+                </div>
+                <div className="text-xs text-gray-500 truncate">
+                  {step.description}
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+        
+        <div className="mt-4 text-xs font-mono text-gray-500 uppercase tracking-widest">
+          STATUS: {taskStatus || 'FETCHING'} · PROGRESS: {completedSteps}/{totalSteps}
+        </div>
       </div>
     );
   }
@@ -121,10 +256,16 @@ const ItineraryDetailPage: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button className="hidden sm:flex items-center gap-2 px-4 py-2 border border-orange-200 rounded-xl text-sm font-medium hover:bg-orange-50 text-orange-700 transition-all">
+            <button 
+              onClick={handleShare}
+              className="hidden sm:flex items-center gap-2 px-4 py-2 border border-orange-200 rounded-xl text-sm font-medium hover:bg-orange-50 text-orange-700 transition-all"
+            >
               <Share2 size={16} /> 分享
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-600 to-amber-600 text-white rounded-xl text-sm font-medium hover:shadow-lg hover:shadow-orange-200 transition-all">
+            <button 
+              onClick={handleExportPDF}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-600 to-amber-600 text-white rounded-xl text-sm font-medium hover:shadow-lg hover:shadow-orange-200 transition-all"
+            >
               <Download size={16} /> 导出 PDF
             </button>
           </div>

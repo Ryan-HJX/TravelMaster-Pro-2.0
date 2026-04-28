@@ -68,6 +68,25 @@ export interface TaskResponse {
   createdAt: string;
   updatedAt: string;
   itinerary?: ItineraryResponse;
+  progress?: TaskProgress;
+}
+
+export interface ProgressStep {
+  stepId: string;
+  stepName: string;
+  description: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  startTime?: string;
+  endTime?: string;
+}
+
+export interface TaskProgress {
+  taskId: string;
+  currentStep?: string;
+  overallProgress: number;
+  steps: ProgressStep[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AuthorSummary {
@@ -144,6 +163,8 @@ export const login = (payload: { account: string; password: string }) =>
   unwrap<AuthResponse>(api.post('/api/auth/login', payload));
 
 export const getMe = () => unwrap<UserProfile>(api.get('/api/users/me'));
+export const updateProfile = (payload: { nickname: string; bio?: string; avatarUrl?: string; phone?: string; preferenceTags?: string[] }) =>
+  unwrap<UserProfile>(api.put('/api/users/me', payload));
 
 export const createTask = (payload: { userInput: string; preferences?: Record<string, unknown>; travelConstraints?: Record<string, unknown>; promptVersion?: string }) =>
   unwrap<TaskResponse>(api.post('/api/itinerary-tasks', payload));
@@ -181,11 +202,9 @@ export const createItinerary = async (payload: { user_input: string; preferences
   return response.data.data ?? response.data;
 };
 
-export const getHistory = async (userId: string): Promise<Itinerary[]> => {
-  const response = await api.get(`/api/travel/history/${userId}`);
-  return response.data.data ?? response.data;
-};
+export const getHistory = () => unwrap<ItineraryResponse[]>(api.get('/api/itineraries'));
+export const getItinerary = (id: string) => unwrap<ItineraryResponse>(api.get(`/api/itineraries/${id}`));
 
 export const deleteItinerary = async (id: number | string): Promise<void> => {
-  await api.delete(`/api/travel/history/${id}`);
+  await api.delete(`/api/itineraries/${id}`);
 };
