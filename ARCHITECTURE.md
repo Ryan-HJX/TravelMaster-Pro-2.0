@@ -5,7 +5,7 @@
 ```mermaid
 graph TB
     subgraph Client["客户端"]
-        Browser["浏览器 / SPA<br/>React + 高德 JS API"]
+        Browser["浏览器 / SPA<br/>React + ECharts + 高德 JS API"]
     end
 
     subgraph Gateway["网关层"]
@@ -24,6 +24,7 @@ graph TB
         direction TB
         StreamWorker["Redis Stream Worker<br/>消费任务"]
         LangGraphWF["LangGraph 7-Node 工作流"]
+        ProgressTracker["Progress Tracker<br/>实时进度追踪"]
         ModelRouter["Model Router<br/>云端优先 + 本地降级"]
     end
 
@@ -53,6 +54,7 @@ graph TB
     Service -->|"投递 Stream / 缓存 / 锁 / 限流"| Redis
     Redis -->|"Stream 消费"| StreamWorker
     StreamWorker --> LangGraphWF
+    StreamWorker --> ProgressTracker
     LangGraphWF --> ModelRouter
     ModelRouter -->|"云端优先"| BailianAPI
     BailianAPI --> AmapMCP
@@ -360,7 +362,43 @@ sequenceDiagram
 
 ---
 
-## 7. 缓存策略
+## 7. 数据库迁移策略
+
+### Flyway 版本化迁移
+
+| 版本 | 文件名 | 说明 |
+|------|--------|------|
+| V1 | `V1__initial_schema.sql` | 初始数据库结构（用户、行程、社交等） |
+| V2 | `V2__add_mcp_trace.sql` | 添加 MCP Trace 字段（2.0 架构升级） |
+| V3 | `V3__add_footprint_table.sql` | 添加足迹地图表 |
+| V4 | `V4__fix_cascade_delete.sql` | 修复外键约束，添加 ON DELETE CASCADE |
+
+### 级联删除策略
+
+**问题**：删除帖子时，因 `post_likes`、`post_favorites`、`comments` 表的外键约束导致删除失败。
+
+**解决**：修改外键为 `ON DELETE CASCADE`，自动清理关联数据。
+
+```sql
+-- post_likes 表
+ALTER TABLE post_likes 
+    ADD CONSTRAINT fk_post_like_post 
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE;
+
+-- post_favorites 表
+ALTER TABLE post_favorites 
+    ADD CONSTRAINT fk_post_favorite_post 
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE;
+
+-- comments 表
+ALTER TABLE comments 
+    ADD CONSTRAINT fk_comment_post 
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE;
+```
+
+---
+
+## 8. 缓存策略
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -380,7 +418,7 @@ sequenceDiagram
 
 ---
 
-## 8. 限流策略
+## 9. 限流策略
 
 | 接口 | 维度 | 限制 |
 |------|------|------|
@@ -391,7 +429,7 @@ sequenceDiagram
 
 ---
 
-## 9. 可观测性
+## 10. 可观测性
 
 所有 MCP 调用落 trace，便于面试展示：
 
@@ -412,3 +450,146 @@ sequenceDiagram
 | 天气适配度 | 20 | 天气数据完整性 |
 | 每日均衡度 | 20 | 每天活动分布方差 |
 | MCP 真实率 | 20 | 来自高德 MCP 的 POI 比例 |
+
+---
+
+## 11. Redis Stream 任务队列优化
+
+### 消息堆积问题
+
+**现象**：Worker 重复处理历史任务，即使用户未提交新请求。
+
+**根本原因**：
+- Worker 使用 `xread` 从 Stream 开头读取（`last_id = '0'`）
+- 重启后会重新消费所有历史消息
+
+**解决方案**：
+```python
+# ❌ 旧配置：从开头读取
+last_id = '0'
+
+# ✅ 新配置：从最新消息开始
+last_id = '$'
+```
+
+### 清理工具
+
+提供 `clean_redis_stream.py` 脚本用于手动清理堆积消息：
+
+```bash
+python clean_redis_stream.py
+```
+
+---
+
+## 12. 实时进度追踪
+
+### 架构设计
+
+```mermaid
+graph LR
+    A["Java Backend"] -->|"XADD Stream"| B["Redis Stream"]
+    B -->|"XREAD"| C["Python Worker"]
+    C -->|"update_step_status"| D["Progress Tracker"]
+    D -->|"HSET Hash"| E["Redis Progress"]
+    F["Frontend"] -->|"Poll /api/tasks/{id}/progress"| A
+    A -->|"HGETALL"| E
+```
+
+### 进度数据结构
+
+```json
+{
+  "taskId": "965901f1-a669-48ab-941e-c9456b09e61f",
+  "overallProgress": 37,
+  "currentStep": "poi_selector",
+  "steps": [
+    {"id": "intent_parser", "name": "意图解析", "status": "completed", "progress": 100},
+    {"id": "geo_grounder", "name": "地理校准", "status": "completed", "progress": 100},
+    {"id": "poi_selector", "name": "POI筛选", "status": "processing", "progress": 50},
+    {"id": "route_optimizer", "name": "路线优化", "status": "pending", "progress": 0},
+    {"id": "weather_adjuster", "name": "天气联动", "status": "pending", "progress": 0},
+    {"id": "scoring", "name": "可执行性评分", "status": "pending", "progress": 0},
+    {"id": "renderer", "name": "行程渲染", "status": "pending", "progress": 0},
+    {"id": "finance_advisor", "name": "资金规划", "status": "pending", "progress": 0}
+  ]
+}
+```
+
+### 日志级别优化
+
+**问题**：进度更新日志被隐藏，无法调试。
+
+**解决**：
+1. Uvicorn 日志级别设置为 `info`（而非 `warning`）
+2. Progress Tracker 使用 `logger.info()`（而非 `logger.debug()`）
+3. 关闭 HTTP 访问日志（`access_log=False`）减少噪音
+
+```python
+# main.py
+uvicorn.run(
+    "main:app",
+    log_level="info",      # ✅ 显示 info 级别日志
+    access_log=False       # ✅ 关闭访问日志
+)
+
+# progress_tracker.py
+logger.info(f"[PROGRESS UPDATE] Task {task_id}, Step {step_id} -> {status}")
+logger.info(f"[PROGRESS UPDATED] Task {task_id}: {overall_progress}% complete")
+```
+
+---
+
+## 13. Java WebClient 错误处理优化
+
+### 404 错误优雅处理
+
+**问题**：Python 服务返回 404 时，Java 后端抛出异常并记录错误日志。
+
+**解决**：使用 `WebClient.onStatus()` 优雅处理 4xx 错误。
+
+```java
+Map<String, Object> progressData = pythonWebClient.get()
+    .uri("/api/v1/tasks/{taskId}/progress", taskId)
+    .retrieve()
+    // ✅ 优雅处理 4xx 客户端错误
+    .onStatus(
+        HttpStatusCode::is4xxClientError,
+        response -> Mono.empty()  // 返回空值而非抛异常
+    )
+    .bodyToMono(Map.class)
+    .block(Duration.ofSeconds(2));
+```
+
+---
+
+## 14. 前端自动计算功能
+
+### 旅行天数联动计算
+
+**需求**：根据开始日期和结束日期自动计算旅行天数。
+
+**实现**：
+```typescript
+useEffect(() => {
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    // 计算两个日期之间的天数差（包含首尾两天）
+    const diffTime = end.getTime() - start.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    
+    // 确保天数在合理范围内（1-15天）
+    if (diffDays >= 1 && diffDays <= 15) {
+      setDays(diffDays);
+    }
+  }
+}, [startDate, endDate]);
+```
+
+**计算公式**：
+- `end.getTime() - start.getTime()`：获取毫秒差
+- `/ (1000 * 60 * 60 * 24)`：转换为天数（86400000 毫秒 = 1 天）
+- `Math.ceil()`：向上取整，处理浮点数精度问题
+- `+1`：包含首尾两天（例如 4/29 到 4/29 是 1 天，不是 0 天）

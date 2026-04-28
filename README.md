@@ -5,6 +5,16 @@
 
 ---
 
+## 📸 项目展示
+
+### 主页界面
+![主页](./主页.jpeg)
+
+### AI 行程规划
+![行程规划](./规划.jpeg)
+
+---
+
 ## 技术栈
 
 | 层次 | 技术 |
@@ -17,7 +27,7 @@
 | **数据** | MySQL 8.0 · Redis 7 (Stream / Cache / Rate Limit / Distributed Lock) |
 | **缓存** | Caffeine (L1) + Redis (L2) 两级缓存 |
 | **分布式** | Redisson 分布式锁 · Redis Stream 异步任务 |
-| **前端** | React 19 · TypeScript · Vite · 高德 JS API · Axios |
+| **前端** | React 19 · TypeScript · Vite · ECharts · 高德 JS API · Axios |
 | **基础设施** | Docker Compose · Nginx · k6 压测 |
 | **测试** | JUnit 5 · Mockito · MockMvc · pytest · pytest-asyncio |
 
@@ -72,6 +82,7 @@
 | `ranking` | 排行榜 | Redis Sorted Set · Caffeine + Redis 两级缓存 |
 | `analytics` | 运营报表 | 聚合 SQL · 转化漏斗 · 目的地统计 |
 | `ai-planner` | AI 行程规划 (Python) | 百炼 qwen3 · Amap MCP · 盈米 MCP · 7 段式 LangGraph |
+| `footprint` | 足迹地图 | ECharts 省级地图 · 34 个省级行政区 · 自动联动计算 |
 
 ---
 
@@ -105,6 +116,20 @@
 | 现金预留建议 | 推荐预留金额 + 应急金 |
 | 赎回时点提醒 | T+0/T+1/T+N 流动性提醒 |
 | 风险提示 | 免责声明（不构成投资建议） |
+
+---
+
+## 足迹地图
+
+基于 ECharts 的中国省级行政区可视化地图：
+
+| 特性 | 说明 |
+|------|------|
+| **省级地图** | 覆盖 34 个省级行政区（含特别行政区） |
+| **自动联动** | 开始/结束日期变化时，天数自动计算（包含首尾两天） |
+| **多数据源容错** | 尝试阿里云 DataV v3/v2 API，加载失败显示友好提示 |
+| **降级策略** | 即使地图加载失败，仍可使用右侧省份列表手动标记 |
+| **实时交互** | 点击省份切换访问状态，支持搜索过滤 |
 
 ---
 
