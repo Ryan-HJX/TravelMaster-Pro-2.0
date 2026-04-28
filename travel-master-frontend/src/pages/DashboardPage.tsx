@@ -25,7 +25,12 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
   const [funnel, setFunnel] = useState<Record<string, number>>({});
   const [destinations, setDestinations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const navigate = useNavigate();
+
+  const handleBellClick = () => {
+    setShowNotifications(!showNotifications);
+  };
 
   const loadData = useCallback(async () => {
     // Individual loaders to prevent one failure from blocking everything
@@ -89,26 +94,26 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Sidebar - Desktop */}
-      <aside className="fixed left-0 top-0 bottom-0 w-64 bg-gradient-to-b from-orange-900 to-amber-900 text-white p-6 hidden xl:flex flex-col">
+      <aside className="fixed left-0 top-0 bottom-0 w-64 bg-gradient-to-b from-orange-500 to-amber-500 text-white p-6 hidden xl:flex flex-col shadow-xl">
         <div className="flex items-center gap-3 mb-10 px-2">
-          <div className="w-10 h-10 rounded-xl premium-gradient flex items-center justify-center text-white shadow-lg shadow-orange-500/30">
+          <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-white shadow-lg">
             <TrendingUp size={24} />
           </div>
           <span className="text-xl font-bold tracking-tight">TravelMaster</span>
         </div>
 
         <nav className="flex-1 space-y-2">
-          <Link to="/" className="flex items-center gap-3 px-4 py-3 bg-white/10 rounded-xl text-sm font-bold">
+          <Link to="/" className="flex items-center gap-3 px-4 py-3 bg-white/20 backdrop-blur-sm rounded-xl text-sm font-bold shadow-sm">
             <LayoutDashboard size={18} /> 工作台
           </Link>
-          <Link to="/settings" className="flex items-center gap-3 px-4 py-3 text-orange-200 hover:text-white hover:bg-white/5 rounded-xl text-sm font-bold transition-all">
+          <Link to="/settings" className="flex items-center gap-3 px-4 py-3 text-white/90 hover:text-white hover:bg-white/10 rounded-xl text-sm font-bold transition-all">
             <Settings size={18} /> 个人设置
           </Link>
         </nav>
 
         <button 
           onClick={onLogout}
-          className="flex items-center gap-3 px-4 py-3 text-orange-300 hover:bg-orange-500/10 rounded-xl text-sm font-bold transition-all"
+          className="flex items-center gap-3 px-4 py-3 text-white/90 hover:bg-white/10 rounded-xl text-sm font-bold transition-all"
         >
           <LogOut size={18} /> 退出登录
         </button>
@@ -122,12 +127,55 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
             <h1 className="text-xl font-bold text-slate-900">早安, {user.nickname}</h1>
             <p className="text-xs text-slate-500 mt-1 font-medium">今天想去哪里探索？AI 已准备好为您规划。</p>
           </div>
-          <div className="flex items-center gap-4">
-            <button className="p-2.5 bg-slate-100 rounded-full text-slate-600 relative">
+          <div className="flex items-center gap-4 relative">
+            <button 
+              onClick={handleBellClick}
+              className="p-2.5 bg-orange-100 hover:bg-orange-200 rounded-full text-orange-600 relative transition-colors"
+            >
               <Bell size={20} />
-              {notifications.some(n => !n.read) && <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full" />}
+              {notifications.some(n => !n.read) && <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full animate-pulse" />}
             </button>
-            <Link to="/settings" className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold border-2 border-white shadow-sm">
+            
+            {/* Notifications Dropdown */}
+            {showNotifications && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute top-14 right-0 w-96 bg-white rounded-2xl shadow-2xl border border-orange-100 overflow-hidden z-50"
+              >
+                <div className="p-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white">
+                  <h3 className="font-bold text-lg">通知中心</h3>
+                  <p className="text-xs text-white/80 mt-1">您有 {notifications.filter(n => !n.read).length} 条未读通知</p>
+                </div>
+                <div className="max-h-96 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400">
+                      <Bell size={48} className="mx-auto mb-3 opacity-30" />
+                      <p>暂无通知</p>
+                    </div>
+                  ) : (
+                    notifications.map(notif => (
+                      <div 
+                        key={notif.notificationId}
+                        className={`p-4 border-b border-orange-50 hover:bg-orange-50 transition-colors ${!notif.read ? 'bg-orange-50/50' : ''}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${!notif.read ? 'bg-orange-500' : 'bg-transparent'}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm text-gray-900">{notif.title}</div>
+                            <div className="text-xs text-gray-600 mt-1">{notif.content}</div>
+                            <div className="text-[10px] text-gray-400 mt-2">{new Date(notif.createdAt).toLocaleString('zh-CN')}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            )}
+            
+            <Link to="/settings" className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold border-2 border-white shadow-sm hover:bg-orange-200 transition-colors">
               {user.nickname[0]}
             </Link>
           </div>
@@ -212,8 +260,15 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
 
             {/* Social Feed */}
             <section className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-slate-900">灵感发现</h2>
+              <div className="flex items-center justify-between group relative">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold text-slate-900">💡 灵感发现</h2>
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-0 top-full mt-2 w-72 bg-white rounded-xl shadow-xl border border-orange-100 p-4 z-10">
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                      这里展示其他用户分享的精彩行程，为您提供旅行灵感和参考。点击卡片可以查看完整行程详情！
+                    </p>
+                  </div>
+                </div>
                 <Link to="/" className="text-sm font-bold text-orange-600 hover:underline">查看全部</Link>
               </div>
               <div className="grid sm:grid-cols-2 gap-6">
@@ -255,16 +310,16 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
 
           {/* Right Sidebar */}
           <aside className="space-y-8">
-            <section className="bg-slate-900 rounded-[2rem] p-6 text-white overflow-hidden relative">
-              <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-              <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-6">热门榜单</h3>
-              <div className="space-y-4">
+            <section className="bg-gradient-to-br from-orange-500 to-amber-500 rounded-[2rem] p-6 text-white overflow-hidden relative shadow-lg shadow-orange-200">
+              <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-white/20 rounded-full blur-2xl" />
+              <h3 className="text-sm font-bold uppercase tracking-widest text-white/90 mb-6 relative z-10">🔥 热门榜单</h3>
+              <div className="space-y-4 relative z-10">
                 {hotPosts.slice(0, 5).map((p, i) => (
                   <div key={p.postId} className="flex items-center gap-4 group cursor-pointer" onClick={() => navigate(`/itinerary/${p.itineraryId}`)}>
-                    <span className="text-xl font-black text-slate-800 group-hover:text-orange-500 transition-colors">0{i+1}</span>
-                    <div className="min-w-0">
-                      <div className="text-sm font-bold truncate group-hover:text-orange-400 transition-colors cursor-pointer">{p.title}</div>
-                      <div className="text-[10px] text-slate-500 font-bold mt-0.5">{p.likeCount} 喜欢</div>
+                    <span className={`text-xl font-black transition-colors ${i < 3 ? 'text-white' : 'text-white/60'}`}>0{i+1}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-bold truncate group-hover:text-white/90 transition-colors cursor-pointer">{p.title}</div>
+                      <div className="text-[10px] text-white/70 font-bold mt-0.5">❤️ {p.likeCount} 喜欢</div>
                     </div>
                   </div>
                 ))}
