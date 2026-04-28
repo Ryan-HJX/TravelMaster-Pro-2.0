@@ -1,85 +1,90 @@
-"""
-LangGraph 工作流组装模块。
+from __future__ import annotations
 
-负责将 Planner, Researcher, Validator 和 Generator 节点连接成完整的自动化工作流。
-"""
+import asyncio
+from uuid import uuid4
 
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
+
 from src.agents.state import TravelState
-from src.agents.planner import planner_node
-from src.agents.researcher import researcher_node
-from src.agents.validator import validator_node
-from src.agents.itinerary_generator import itinerary_generator_node
+from src.schemas.plan import StructuredItinerary
+from src.skills.intent_parse import parse_intent
+from src.skills.itinerary_render import render_itinerary
+from src.skills.poi_verify import verify_pois
+from src.skills.route_plan import plan_routes
+from src.skills.social_context import build_social_context
+from src.skills.template_recall import recall_templates
+from src.skills.weather import collect_weather
 
 
-def should_regenerate(state: TravelState) -> str:
-    """
-    条件分支函数：根据 Validator 的反馈决定下一步走向。
+async def intent_node(state: TravelState) -> TravelState:
+    intent, trace = parse_intent(state["user_input"], state["prompt_version"])
+    return {"intent": intent, "skill_traces": [trace], "trace_id": state.get("trace_id", uuid4().hex)}
 
-    Args:
-        state: 当前的全局状态。
 
-    Returns:
-        str: 下一个节点的名称 ('itinerary_generator' 或 'planner')。
-    """
-    feedback = state.get("validation_feedback", "")
-    
-    # 如果校验通过（包含 PASS）或者没有发现明显错误，则进入生成阶段
-    if "PASS" in feedback or not feedback:
-        return "itinerary_generator"
-    else:
-        # 如果发现了矛盾，返回 Planner 重新拆解任务或调整方向
-        print(f"[WARN] 检测到逻辑矛盾，正在返回 Planner 重新规划...")
-        return "planner"
+async def enrichment_node(state: TravelState) -> TravelState:
+    intent = state["intent"]
+    prompt_version = state["prompt_version"]
+    templates_result, weather_result, pois_result = await asyncio.gather(
+        asyncio.to_thread(recall_templates, intent, prompt_version),
+        collect_weather(intent, prompt_version),
+        verify_pois(intent, prompt_version),
+    )
+    social_notes, social_trace = build_social_context(intent, prompt_version, state.get("preferences", {}))
+    templates, template_trace = templates_result
+    weather, weather_trace = weather_result
+    pois, poi_trace = pois_result
+    traces = state.get("skill_traces", []) + [template_trace, weather_trace, poi_trace, social_trace]
+    return {
+        "templates": templates,
+        "social_notes": social_notes,
+        "weather": weather,
+        "pois": pois,
+        "skill_traces": traces,
+    }
+
+
+async def route_node(state: TravelState) -> TravelState:
+    routes, trace = await plan_routes(state.get("pois", []), state["prompt_version"])
+    return {"routes": routes, "skill_traces": state.get("skill_traces", []) + [trace]}
+
+
+async def validation_node(state: TravelState) -> TravelState:
+    feedback = "PASS"
+    if not state.get("pois"):
+        feedback = "NO_POI_FALLBACK"
+    elif len(state.get("weather", [])) < state["intent"].days:
+        feedback = "WEATHER_DEGRADED"
+    return {"validation_feedback": feedback}
+
+
+async def render_node(state: TravelState) -> TravelState:
+    plan, trace = render_itinerary(
+        intent=state["intent"],
+        prompt_version=state["prompt_version"],
+        templates=state.get("templates", []),
+        social_notes=state.get("social_notes", []),
+        weather=state.get("weather", []),
+        pois=state.get("pois", []),
+        routes=state.get("routes", []),
+        traces=state.get("skill_traces", []),
+        trace_id=state.get("trace_id"),
+    )
+    traces = state.get("skill_traces", []) + [trace]
+    plan = StructuredItinerary.model_validate({**plan.model_dump(), "skill_traces": traces})
+    return {"plan": plan, "skill_traces": traces}
 
 
 def create_travel_graph():
-    """
-    创建并编译旅游规划 Agent 的工作流图。
-
-    流程说明:
-    1. START -> Planner: 接收用户输入，拆解任务。
-    2. Planner -> Researcher: 根据任务列表执行搜索。
-    3. Researcher -> Validator: 检查搜索结果的逻辑一致性。
-    4. Validator -> [Condition]: 
-       - 如果通过 -> Itinerary Generator
-       - 如果不通过 -> Planner (重试)
-    5. Itinerary Generator -> END: 输出最终行程单。
-
-    Returns:
-        CompiledGraph: 编译好的 LangGraph 实例。
-    """
-    # 1. 初始化状态图
     workflow = StateGraph(TravelState)
-
-    # 2. 添加节点 (Nodes)
-    workflow.add_node("planner", planner_node)
-    workflow.add_node("researcher", researcher_node)
-    workflow.add_node("validator", validator_node)
-    workflow.add_node("itinerary_generator", itinerary_generator_node)
-
-    # 3. 设置入口点 (Entry Point)
-    workflow.set_entry_point("planner")
-
-    # 4. 添加连线 (Edges)
-    # 线性流程：Planner -> Researcher -> Validator
-    workflow.add_edge("planner", "researcher")
-    workflow.add_edge("researcher", "validator")
-
-    # 条件分支：Validator -> (Generator 或 Planner)
-    workflow.add_conditional_edges(
-        source="validator",
-        path=should_regenerate,
-        path_map={
-            "itinerary_generator": "itinerary_generator",
-            "planner": "planner"
-        }
-    )
-
-    # 结束流程：Generator -> END
-    workflow.add_edge("itinerary_generator", END)
-
-    # 5. 编译工作流
-    app = workflow.compile()
-    print("[OK] TravelMaster 工作流已编译完成")
-    return app
+    workflow.add_node("intent_skill", intent_node)
+    workflow.add_node("enrichment_skill", enrichment_node)
+    workflow.add_node("routing_skill", route_node)
+    workflow.add_node("validation_skill", validation_node)
+    workflow.add_node("render_skill", render_node)
+    workflow.set_entry_point("intent_skill")
+    workflow.add_edge("intent_skill", "enrichment_skill")
+    workflow.add_edge("enrichment_skill", "routing_skill")
+    workflow.add_edge("routing_skill", "validation_skill")
+    workflow.add_edge("validation_skill", "render_skill")
+    workflow.add_edge("render_skill", END)
+    return workflow.compile()
