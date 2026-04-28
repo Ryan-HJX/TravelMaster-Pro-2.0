@@ -13,6 +13,7 @@ public record TaskResponse(
         String failureReason,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        ItineraryResponse itinerary
+        ItineraryResponse itinerary,
+        TaskProgress progress
 ) {
 }

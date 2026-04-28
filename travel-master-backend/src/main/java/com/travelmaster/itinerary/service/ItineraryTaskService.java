@@ -7,10 +7,13 @@ import com.travelmaster.ai.service.AiTaskPublisher;
 import com.travelmaster.analytics.service.BehaviorEventService;
 import com.travelmaster.auth.service.RateLimitService;
 import com.travelmaster.common.exception.AppException;
+import com.travelmaster.config.TravelMasterProperties;
 import com.travelmaster.itinerary.dto.CreateTaskRequest;
 import com.travelmaster.itinerary.dto.ItineraryItemResponse;
 import com.travelmaster.itinerary.dto.ItineraryResponse;
+import com.travelmaster.itinerary.dto.ProgressStep;
 import com.travelmaster.itinerary.dto.PublishItineraryRequest;
+import com.travelmaster.itinerary.dto.TaskProgress;
 import com.travelmaster.itinerary.dto.TaskResponse;
 import com.travelmaster.itinerary.entity.Itinerary;
 import com.travelmaster.itinerary.entity.ItineraryGenerationTask;
@@ -31,9 +34,11 @@ import org.redisson.api.RedissonClient;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -52,6 +57,7 @@ public class ItineraryTaskService {
     private final NotificationService notificationService;
     private final RankingService rankingService;
     private final BehaviorEventService behaviorEventService;
+    private final WebClient pythonWebClient;
 
     public ItineraryTaskService(ItineraryGenerationTaskRepository taskRepository,
                                 ItineraryRepository itineraryRepository,
@@ -63,7 +69,8 @@ public class ItineraryTaskService {
                                 ObjectMapper objectMapper,
                                 NotificationService notificationService,
                                 RankingService rankingService,
-                                BehaviorEventService behaviorEventService) {
+                                BehaviorEventService behaviorEventService,
+                                TravelMasterProperties properties) {
         this.taskRepository = taskRepository;
         this.itineraryRepository = itineraryRepository;
         this.itineraryItemRepository = itineraryItemRepository;
@@ -75,6 +82,7 @@ public class ItineraryTaskService {
         this.notificationService = notificationService;
         this.rankingService = rankingService;
         this.behaviorEventService = behaviorEventService;
+        this.pythonWebClient = WebClient.builder().baseUrl(properties.getAi().getBaseUrl()).build();
     }
 
     @Transactional
@@ -274,6 +282,10 @@ public class ItineraryTaskService {
         if (task.getItineraryId() != null) {
             itinerary = itineraryRepository.findById(task.getItineraryId()).map(this::toItineraryResponse).orElse(null);
         }
+        
+        // Fetch progress from Python service
+        TaskProgress progress = fetchTaskProgress(task.getId());
+        
         return new TaskResponse(
                 task.getId(),
                 task.getTraceId(),
@@ -283,8 +295,57 @@ public class ItineraryTaskService {
                 task.getFailureReason(),
                 task.getCreatedAt(),
                 task.getUpdatedAt(),
-                itinerary
+                itinerary,
+                progress
         );
+    }
+
+    private TaskProgress fetchTaskProgress(String taskId) {
+        try {
+            // Call Python service's progress endpoint
+            Map<String, Object> progressData = pythonWebClient.get()
+                    .uri("/api/v1/tasks/{taskId}/progress", taskId)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block(Duration.ofSeconds(2));
+            
+            if (progressData == null || !"success".equals(progressData.get("code"))) {
+                return null;
+            }
+            
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = (Map<String, Object>) progressData.get("data");
+            if (data == null) {
+                return null;
+            }
+            
+            // Parse steps
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> stepsData = (List<Map<String, Object>>) data.get("steps");
+            List<ProgressStep> steps = stepsData != null ? 
+                stepsData.stream()
+                    .map(s -> new ProgressStep(
+                        (String) s.get("stepId"),
+                        (String) s.get("stepName"),
+                        (String) s.get("description"),
+                        (String) s.get("status"),
+                        s.get("startTime") != null ? LocalDateTime.parse((String) s.get("startTime")) : null,
+                        s.get("endTime") != null ? LocalDateTime.parse((String) s.get("endTime")) : null
+                    ))
+                    .toList() : Collections.emptyList();
+            
+            return new TaskProgress(
+                (String) data.get("taskId"),
+                (String) data.get("currentStep"),
+                data.get("overallProgress") != null ? ((Number) data.get("overallProgress")).intValue() : 0,
+                steps,
+                (String) data.get("createdAt"),
+                (String) data.get("updatedAt")
+            );
+        } catch (Exception e) {
+            log.debug("Failed to fetch progress for task {}: {}", taskId, e.getMessage());
+            return null;
+        }
     }
 
     private ItineraryResponse toItineraryResponse(Itinerary itinerary) {
