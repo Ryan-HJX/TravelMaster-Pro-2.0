@@ -25,7 +25,12 @@ public record AiTaskResultRequest(
         String endLocation,
         String travelModePreference,
         String weatherSummary,
-        String financeSummary
+        String financeSummary,
+        // ── 3.0 inter-city transportation ────────────────────
+        String departureCity,
+        String startDate,
+        String endDate,
+        String transportSummary
 ) {
     public record DayPlan(
             Integer dayNumber,

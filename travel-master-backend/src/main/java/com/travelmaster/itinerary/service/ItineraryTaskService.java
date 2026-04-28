@@ -195,6 +195,15 @@ public class ItineraryTaskService {
         itinerary.setWeatherSummary(result.weatherSummary());
         itinerary.setFinanceSummary(result.financeSummary());
         itinerary.setPlanningScore(result.planningScore());
+        // 3.0 inter-city transportation
+        itinerary.setDepartureCity(result.departureCity());
+        if (result.startDate() != null) {
+            itinerary.setStartDate(java.time.LocalDate.parse(result.startDate()));
+        }
+        if (result.endDate() != null) {
+            itinerary.setEndDate(java.time.LocalDate.parse(result.endDate()));
+        }
+        itinerary.setTransportSummary(result.transportSummary());
         try {
             Itinerary savedItinerary = itineraryRepository.save(itinerary);
 

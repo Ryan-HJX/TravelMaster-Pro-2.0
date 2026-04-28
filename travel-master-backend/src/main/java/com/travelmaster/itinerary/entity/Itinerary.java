@@ -57,4 +57,17 @@ public class Itinerary extends BaseEntity {
 
     @Column(name = "planning_score", length = 20)
     private String planningScore;
+
+    // ── 3.0 inter-city transportation ────────────────────────
+    @Column(name = "departure_city", length = 100)
+    private String departureCity;
+
+    @Column(name = "start_date")
+    private java.time.LocalDate startDate;
+
+    @Column(name = "end_date")
+    private java.time.LocalDate endDate;
+
+    @Column(name = "transport_summary", columnDefinition = "JSON")
+    private String transportSummary;  // JSON string of TransportPlan
 }
