@@ -27,7 +27,8 @@ export default function TravelBudgetAdvisor({ financeSummary }: Props) {
     return (
       <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
         <p style={{ fontSize: 32, marginBottom: 8 }}>💰</p>
-        <p>点击"生成资金安排建议"开启此功能</p>
+        <p>暂无资金建议数据</p>
+        <p style={{ fontSize: 12, marginTop: 8 }}>AI 规划时会自动生成资金安排建议</p>
       </div>
     );
   }

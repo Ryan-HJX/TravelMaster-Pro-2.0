@@ -54,6 +54,7 @@ export interface ItineraryResponse {
   riskTips: string;
   renderedMarkdown: string;
   structuredContent: string;
+  financeSummary?: string;
   publishedAt?: string;
   items: ItineraryItem[];
 }
@@ -174,6 +175,9 @@ export const getTask = (taskId: string) =>
 
 export const publishItinerary = (itineraryId: string, payload: { title: string; caption?: string }) =>
   unwrap<PostResponse>(api.post(`/api/itineraries/${itineraryId}/publish`, payload));
+
+export const unpublishItinerary = (itineraryId: string) =>
+  unwrap<void>(api.post(`/api/itineraries/${itineraryId}/unpublish`));
 
 export const getFeed = () => unwrap<PostResponse[]>(api.get('/api/feed'));
 export const likePost = (postId: string) => unwrap<PostResponse>(api.post(`/api/posts/${postId}/like`));

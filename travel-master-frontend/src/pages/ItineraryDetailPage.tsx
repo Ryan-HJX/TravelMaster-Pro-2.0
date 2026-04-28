@@ -3,11 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, Map as MapIcon, Route, Wallet, Cloud, 
-  Share2, Download, Star, MapPin, Calendar, Clock, CheckCircle2, Loader2
+  Share2, Download, Star, MapPin, Calendar, Clock, CheckCircle2, Loader2, Send
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { getTask, getItinerary, type TaskResponse, type ItineraryResponse, type ProgressStep } from '../services/api';
+import { getTask, getItinerary, publishItinerary, unpublishItinerary, type TaskResponse, type ItineraryResponse, type ProgressStep } from '../services/api';
 import ItineraryMapView from '../components/ItineraryMapView';
 import RouteAlternatives from '../components/RouteAlternatives';
 import TravelBudgetAdvisor from '../components/TravelBudgetAdvisor';
@@ -31,7 +31,66 @@ const ItineraryDetailPage: React.FC = () => {
   const [taskProgress, setTaskProgress] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'map' | 'route' | 'finance'>('map');
   const [showNotifications, setShowNotifications] = useState(false);
+  
+  // Publish dialog state
+  const [showPublishDialog, setShowPublishDialog] = useState(false);
+  const [publishTitle, setPublishTitle] = useState('');
+  const [publishCaption, setPublishCaption] = useState('');
+  const [publishing, setPublishing] = useState(false);
+  const [unpublishing, setUnpublishing] = useState(false);
+  
   const navigate = useNavigate();
+
+  // Check if itinerary is published
+  const isPublished = !!itinerary?.publishedAt;
+
+  // Handle publish to inspiration feed
+  const handlePublish = async () => {
+    if (!id || !itinerary) return;
+    
+    setPublishing(true);
+    try {
+      await publishItinerary(id, {
+        title: publishTitle || itinerary.title,
+        caption: publishCaption
+      });
+      alert('发布成功！即将跳转到首页查看您的分享');
+      setShowPublishDialog(false);
+      setPublishTitle('');
+      setPublishCaption('');
+      // 跳转到首页，让用户看到新发布的行程
+      setTimeout(() => {
+        navigate('/');
+      }, 500);
+    } catch (err) {
+      console.error('Publish failed:', err);
+      alert('发布失败，请稍后重试');
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  // Handle unpublish from inspiration feed
+  const handleUnpublish = async () => {
+    if (!id || !itinerary || !isPublished) return;
+    
+    if (!window.confirm('确定要从灵感发现中撤回吗？撤回后其他用户将无法看到此行程。')) {
+      return;
+    }
+    
+    setUnpublishing(true);
+    try {
+      await unpublishItinerary(id);
+      alert('已撤回发布！行程仍保留在您的历史记录中。');
+      // Reload the page to update the UI
+      window.location.reload();
+    } catch (err) {
+      console.error('Unpublish failed:', err);
+      alert('撤回失败，请稍后重试');
+    } finally {
+      setUnpublishing(false);
+    }
+  };
 
   // Handle export to PDF
   const handleExportPDF = () => {
@@ -238,6 +297,15 @@ const ItineraryDetailPage: React.FC = () => {
 
   // Parse structured content for MCP components
   const structured = JSON.parse(itinerary.structuredContent || '{}');
+  
+  // Use financeSummary from API if not in structured content
+  if (!structured.finance_summary && itinerary.financeSummary) {
+    try {
+      structured.finance_summary = JSON.parse(itinerary.financeSummary);
+    } catch (e) {
+      console.warn('Failed to parse financeSummary:', e);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50/50 to-amber-50/50">
@@ -256,6 +324,28 @@ const ItineraryDetailPage: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {isPublished ? (
+              <button 
+                onClick={handleUnpublish}
+                disabled={unpublishing}
+                className="hidden sm:flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-all disabled:opacity-50"
+              >
+                {unpublishing ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" /> 撤回中...
+                  </>
+                ) : (
+                  <>撤回发布</>
+                )}
+              </button>
+            ) : (
+              <button 
+                onClick={() => setShowPublishDialog(true)}
+                className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all"
+              >
+                <Send size={16} /> 发布到灵感发现
+              </button>
+            )}
             <button 
               onClick={handleShare}
               className="hidden sm:flex items-center gap-2 px-4 py-2 border border-orange-200 rounded-xl text-sm font-medium hover:bg-orange-50 text-orange-700 transition-all"
@@ -406,6 +496,79 @@ const ItineraryDetailPage: React.FC = () => {
           </div>
         </aside>
       </main>
+
+      {/* Publish Dialog */}
+      {showPublishDialog && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8"
+          >
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">发布到灵感发现</h2>
+            <p className="text-sm text-gray-600 mb-6">分享您的行程，为其他旅行者提供灵感</p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  标题 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={publishTitle}
+                  onChange={(e) => setPublishTitle(e.target.value)}
+                  placeholder={itinerary.title}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all"
+                />
+                <p className="text-xs text-gray-500 mt-1">留空则使用行程标题</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  简介
+                </label>
+                <textarea
+                  value={publishCaption}
+                  onChange={(e) => setPublishCaption(e.target.value)}
+                  placeholder="分享您的旅行心得、特别推荐或注意事项..."
+                  rows={4}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all resize-none"
+                />
+                <p className="text-xs text-gray-500 mt-1">留空则使用行程概览</p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-8">
+              <button
+                onClick={() => {
+                  setShowPublishDialog(false);
+                  setPublishTitle('');
+                  setPublishCaption('');
+                }}
+                disabled={publishing}
+                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all disabled:opacity-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handlePublish}
+                disabled={publishing}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {publishing ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" /> 发布中...
+                  </>
+                ) : (
+                  <>
+                    <Send size={18} /> 发布
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

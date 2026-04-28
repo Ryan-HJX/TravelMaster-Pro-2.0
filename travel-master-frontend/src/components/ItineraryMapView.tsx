@@ -59,9 +59,17 @@ export default function ItineraryMapView({ pois, days, planningScore, amapKey }:
       setMapLoaded(true);
       return;
     }
+    // AMap v2.0 Security Config
+    (window as any)._AMapSecurityConfig = {
+      securityJsCode: 'c392c3008986a41f69206d2890638682', // Placeholder or matching key
+    };
     const script = document.createElement('script');
     script.src = `https://webapi.amap.com/maps?v=2.0&key=${amapKey}`;
-    script.onload = () => setMapLoaded(true);
+    script.onload = () => {
+      console.log(">>> [MAP] AMap Script loaded successfully");
+      setMapLoaded(true);
+    };
+    script.onerror = (e) => console.error(">>> [MAP] AMap Script failed to load:", e);
     document.head.appendChild(script);
   }, [amapKey]);
 
@@ -69,12 +77,20 @@ export default function ItineraryMapView({ pois, days, planningScore, amapKey }:
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return;
     const AMap = (window as any).AMap;
-    const center = pois.length > 0 ? [pois[0].longitude, pois[0].latitude] : [116.397, 39.908];
-    mapInstance.current = new AMap.Map(mapRef.current, {
-      zoom: 12,
-      center,
-      mapStyle: 'amap://styles/whitesmoke',
-    });
+    console.log(">>> [MAP] Initializing with POIs:", pois.length);
+    if (pois.length > 0) {
+      console.log(">>> [MAP] First POI:", pois[0].name, pois[0].longitude, pois[0].latitude);
+    }
+    const center = pois.length > 0 && pois[0].longitude ? [pois[0].longitude, pois[0].latitude] : [116.397, 39.908];
+    try {
+      mapInstance.current = new AMap.Map(mapRef.current, {
+        zoom: 12,
+        center,
+        mapStyle: 'amap://styles/whitesmoke',
+      });
+    } catch (e) {
+      console.error(">>> [MAP] Failed to create map instance:", e);
+    }
   }, [mapLoaded, pois]);
 
   // Update markers when activeDay changes
@@ -87,16 +103,39 @@ export default function ItineraryMapView({ pois, days, planningScore, amapKey }:
     const dayData = days.find((d) => d.day_number === activeDay);
     if (!dayData) return;
 
+    // Collect valid points for polyline
+    const validPoints: any[] = [];
+
     dayData.items.forEach((item, idx) => {
       if (!item.longitude || !item.latitude) return;
+      
+      const position = [item.longitude, item.latitude];
+      validPoints.push(new AMap.LngLat(item.longitude, item.latitude));
+      
       const marker = new AMap.Marker({
-        position: [item.longitude, item.latitude],
+        position: position,
         title: item.item_title,
         label: { content: `<span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:10px;font-size:12px">${idx + 1}</span>`, direction: 'top' },
       });
       marker.setMap(mapInstance.current);
       markersRef.current.push(marker);
     });
+
+    // Draw polyline connecting all points
+    if (validPoints.length >= 2) {
+      const polyline = new AMap.Polyline({
+        path: validPoints,
+        strokeColor: "#3b82f6",
+        strokeWeight: 5,
+        strokeOpacity: 0.8,
+        lineJoin: 'round',
+        showDir: true,
+        borderWeight: 1,
+        borderColor: '#ffffff',
+      });
+      polyline.setMap(mapInstance.current);
+      markersRef.current.push(polyline);
+    }
 
     if (dayData.items.length > 0) {
       const first = dayData.items[0];
@@ -111,8 +150,24 @@ export default function ItineraryMapView({ pois, days, planningScore, amapKey }:
 
   return (
     <div style={{ display: 'flex', gap: 16, height: 600 }}>
-      {/* Map */}
-      <div ref={mapRef} style={{ flex: 2, borderRadius: 12, overflow: 'hidden', border: '1px solid #e5e7eb' }} />
+      {/* Map Container */}
+      <div style={{ flex: 2, borderRadius: 12, overflow: 'hidden', border: '1px solid #e5e7eb', position: 'relative' }}>
+        <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
+        
+        {/* Fallback Static Map (visible if JS API fails) */}
+        {!mapLoaded && pois.length > 0 && (
+          <div style={{ position: 'absolute', inset: 0, background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img 
+              src={`https://restapi.amap.com/v3/staticmap?location=${pois[0].longitude},${pois[0].latitude}&zoom=13&size=800*600&markers=mid,,A:${pois[0].longitude},${pois[0].latitude}&key=${amapKey}`}
+              alt="Static Map Fallback"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+            <div style={{ position: 'absolute', bottom: 10, left: 10, background: 'rgba(255,255,255,0.8)', padding: '4px 8px', borderRadius: 4, fontSize: 10, color: '#ef4444' }}>
+              JS API 鉴权失败 (PLAT_NOMATCH)，已切换为静态预览模式
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Sidebar */}
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
