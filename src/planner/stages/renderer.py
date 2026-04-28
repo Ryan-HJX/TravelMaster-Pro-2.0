@@ -25,6 +25,7 @@ RENDER_INSTRUCTIONS = """\
 3. 根据天气调整（雨天用室内备选）
 4. 每个行程项包含：时间段、地点、活动类型、交通方式
 5. 生成整体标题和摘要
+6. **重要**：使用 Markdown 表格格式展示每日行程，提高可读性
 
 输出 JSON:
 {
@@ -62,6 +63,7 @@ async def render_itinerary(
     route_options: list[RouteOption],
     weather_forecast: list[WeatherDay],
     planning_score: PlanningScore,
+    finance_summary: dict[str, Any] | None,
     trace_id: str,
     prompt_version: str,
     mcp_tool_calls: list[MCPToolCall],
@@ -126,16 +128,60 @@ async def render_itinerary(
         weather_day = next((w for w in weather_forecast if w.day_number == d.get("day_number")), None)
         days.append(DayPlan(day_number=int(d.get("day_number", 0)), title=d.get("title", ""), weather=weather_day, items=items))
 
-    # Build rendered markdown
+    # Build rendered markdown with table format
     md_lines = [f"# {data.get('title', '')}\n", f"> {data.get('summary', '')}\n"]
+    
     for day in days:
-        md_lines.append(f"\n## {day.title}\n")
+        md_lines.append(f"\n## 📅 {day.title}\n")
         if day.weather:
-            md_lines.append(f"🌤 {day.weather.weather} {day.weather.temperature_high}/{day.weather.temperature_low}\n")
+            weather_icon = "☀️" if day.weather.is_outdoor_friendly else "🌧️"
+            md_lines.append(f"**天气**: {weather_icon} {day.weather.weather} | 温度: {day.weather.temperature_high}°C / {day.weather.temperature_low}°C\n")
+        
+        # Create table header
+        md_lines.append("| 时间 | 活动 | 地点 | 交通方式 | 备注 |")
+        md_lines.append("|------|------|------|----------|------|")
+        
         for item in day.items:
-            md_lines.append(f"- **{item.start_time}-{item.end_time}** {item.item_title} @ {item.address}")
+            # Format time range
+            time_range = f"{item.start_time}-{item.end_time}"
+            
+            # Format activity with icon
+            activity_icons = {
+                "sightseeing": "🏛️",
+                "restaurant": "🍽️",
+                "transport": "🚌",
+                "shopping": "🛍️",
+                "hotel": "🏨",
+                "cafe": "☕"
+            }
+            icon = activity_icons.get(item.activity_type, "📍")
+            activity = f"{icon} {item.item_title}"
+            
+            # Format transport
+            transport_info = ""
             if item.transport:
-                md_lines.append(f"  🚌 {item.transport.mode} {item.transport.duration_minutes}分钟")
+                transport_icons = {
+                    "subway": "🚇",
+                    "bus": "🚌",
+                    "taxi": "🚕",
+                    "walking": "🚶",
+                    "driving": "🚗",
+                    "bike": "🚲"
+                }
+                t_icon = transport_icons.get(item.transport.mode, "🚶")
+                transport_info = f"{t_icon} {item.transport.mode} ({item.transport.duration_minutes}分钟)"
+            else:
+                transport_info = "—"
+            
+            # Truncate address if too long
+            address = item.address[:20] + "..." if len(item.address) > 20 else item.address
+            
+            # Notes
+            notes = item.notes if item.notes else "—"
+            
+            md_lines.append(f"| **{time_range}** | {activity} | {address} | {transport_info} | {notes} |")
+        
+        md_lines.append("")  # Empty line after table
 
     return StructuredItinerary(
         trace_id=trace_id, prompt_version=prompt_version,
@@ -144,5 +190,5 @@ async def render_itinerary(
         days=days, enriched_pois=enriched_pois, fallback_options=fallback_options,
         route_options=route_options, weather_forecast=weather_forecast,
         planning_score=planning_score, model_provider=model_provider,
-        mcp_tool_calls=mcp_tool_calls,
+        mcp_tool_calls=mcp_tool_calls, finance_summary=finance_summary
     )

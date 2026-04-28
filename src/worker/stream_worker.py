@@ -10,6 +10,7 @@ from redis.asyncio import from_url as redis_from_url
 from src.config.settings import settings
 from src.schemas.plan import WorkerTaskRequest
 from src.services.travel_service import TravelService
+from src.services.progress_tracker import progress_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,13 @@ async def process_stream_tasks() -> None:
 
 
 async def _handle_task(travel_service: TravelService, client: httpx.AsyncClient, request: WorkerTaskRequest) -> None:
+    # Initialize progress tracking for this task
+    try:
+        await progress_tracker.initialize_task(request.task_id)
+        print(f">>> [PROGRESS] Initialized tracking for task {request.task_id}")
+    except Exception as e:
+        print(f"!!! [PROGRESS ERROR] Failed to initialize: {e}")
+    
     try:
         plan = await travel_service.generate_plan(
             user_input=request.user_input,
