@@ -86,6 +86,23 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
     loadData();
   }, [loadData]);
 
+  // 根据开始和结束日期自动计算旅行天数
+  useEffect(() => {
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      // 计算两个日期之间的天数差（包含首尾两天）
+      const diffTime = end.getTime() - start.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      
+      // 确保天数在合理范围内（1-15天）
+      if (diffDays >= 1 && diffDays <= 15) {
+        setDays(diffDays);
+      }
+    }
+  }, [startDate, endDate]);
+
   const handleSubmitTask = async (customInput?: string) => {
     const input = customInput || taskInput;
     if (!input) return;
