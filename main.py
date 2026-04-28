@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.v1.plan import router as plan_router
+from src.api.v1.progress import router as progress_router
 from src.config.settings import settings
 from src.services.travel_service import TravelService
 from src.worker.stream_worker import process_stream_tasks
@@ -20,11 +21,15 @@ if sys.platform == "win32":
         sys.stderr.reconfigure(encoding="utf-8")
 
 
+print(">>> [LOAD] main.py is loading...")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    print(">>> [LIFESPAN] Starting application...")
     worker_task = None
     if settings.ENABLE_STREAM_WORKER:
-        worker_task = asyncio.create_task(process_stream_tasks(TravelService()))
+        print(">>> [LIFESPAN] Spawning Stream Worker...")
+        worker_task = asyncio.create_task(process_stream_tasks())
     try:
         yield
     finally:
@@ -50,6 +55,7 @@ app.add_middleware(
 )
 
 app.include_router(plan_router, prefix="/api/v1", tags=["planner"])
+app.include_router(progress_router, prefix="/api/v1", tags=["progress"])
 
 
 @app.get("/")
