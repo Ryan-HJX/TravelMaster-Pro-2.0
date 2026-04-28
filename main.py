@@ -64,4 +64,11 @@ async def root():
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        log_level="info",  # 显示 info 级别日志，包括进度更新
+        access_log=False  # 关闭 HTTP 访问日志，减少噪音
+    )

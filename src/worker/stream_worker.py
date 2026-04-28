@@ -18,10 +18,11 @@ logger = logging.getLogger(__name__)
 async def process_stream_tasks() -> None:
     travel_service = TravelService()
     redis_client = redis_from_url(settings.REDIS_URL, decode_responses=True)
-    # Start from the beginning or pending to ensure no tasks are missed
-    last_id = '0' 
+    # Start from the end to avoid reprocessing old messages
+    last_id = '$'  # ✅ 从最新消息开始，忽略历史消息
     # Explicitly disable proxies for internal Java backend calls to avoid 502 errors
     print(f">>> [WORKER] Starting stream worker. Redis: {settings.REDIS_URL}, Stream: {settings.AI_TASK_STREAM}")
+    print(f">>> [WORKER] Will only process NEW messages (last_id={last_id})")
     async with httpx.AsyncClient(timeout=settings.EXTERNAL_TIMEOUT_SECONDS, trust_env=False) as client:
         print(">>> [WORKER] HTTP Client initialized. Entering main loop...")
         while True:

@@ -115,6 +115,7 @@ class ProgressTracker:
 
             # Parse existing steps
             steps = json.loads(progress_data.get("steps", "[]"))
+            logger.info(f"[PROGRESS UPDATE] Task {task_id}, Step {step_id} -> {status}")
 
             # Update the specific step
             now = datetime.utcnow().isoformat()
@@ -154,12 +155,12 @@ class ProgressTracker:
             await r.hset(progress_key, mapping=progress_data)
             await r.expire(progress_key, 3600)
 
-            logger.debug(
-                f"Updated step {step_id} to {status} for task {task_id} "
-                f"(progress: {overall_progress}%)"
+            logger.info(
+                f"[PROGRESS UPDATED] Task {task_id}: {overall_progress}% complete, "
+                f"current step: {current_step_name or 'N/A'}"
             )
         except Exception as e:
-            logger.error(f"Failed to update step status: {e}")
+            logger.error(f"Failed to update step status: {e}", exc_info=True)
 
     async def get_progress(self, task_id: str) -> Optional[dict]:
         """Get current progress for a task."""
