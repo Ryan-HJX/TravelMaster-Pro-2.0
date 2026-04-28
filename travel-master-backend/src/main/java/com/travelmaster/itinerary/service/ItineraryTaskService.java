@@ -32,9 +32,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -332,6 +334,10 @@ public class ItineraryTaskService {
             Map<String, Object> progressData = pythonWebClient.get()
                     .uri("/api/v1/tasks/{taskId}/progress", taskId)
                     .retrieve()
+                    .onStatus(
+                        HttpStatusCode::is4xxClientError,
+                        response -> Mono.empty()  // Return empty Mono to suppress the error
+                    )
                     .bodyToMono(Map.class)
                     .block(Duration.ofSeconds(2));
             
@@ -369,6 +375,7 @@ public class ItineraryTaskService {
                 (String) data.get("updatedAt")
             );
         } catch (Exception e) {
+            // Log at debug level to avoid spamming logs for expired tasks
             log.debug("Failed to fetch progress for task {}: {}", taskId, e.getMessage());
             return null;
         }
