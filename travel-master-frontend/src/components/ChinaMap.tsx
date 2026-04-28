@@ -28,6 +28,7 @@ const ChinaMap: React.FC<ChinaMapProps> = ({ visitedCities, onCityToggle, onClos
   const chartRef = useRef<HTMLDivElement>(null);
   const [chartInstance, setChartInstance] = useState<echarts.ECharts | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [mapLoading, setMapLoading] = useState(true);
 
   // 初始化图表
   useEffect(() => {
@@ -40,14 +41,37 @@ const ChinaMap: React.FC<ChinaMapProps> = ({ visitedCities, onCityToggle, onClos
     const loadMapData = async () => {
       try {
         console.log('Loading China province map...');
-        const response = await fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json');
+        setMapLoading(true);
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        // 尝试多个数据源
+        const sources = [
+          'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json',
+          'https://geo.datav.aliyun.com/areas_v2/bound/100000_full.json',
+        ];
+        
+        let geoJson = null;
+        let loaded = false;
+        
+        for (const source of sources) {
+          try {
+            console.log(`Trying source: ${source}`);
+            const response = await fetch(source);
+            
+            if (response.ok) {
+              geoJson = await response.json();
+              console.log(`✓ Map data loaded from ${source}, features:`, geoJson.features?.length);
+              loaded = true;
+              break;
+            }
+          } catch (err) {
+            console.warn(`Failed to load from ${source}:`, err);
+            continue;
+          }
         }
         
-        const geoJson = await response.json();
-        console.log('✓ Map data loaded, features:', geoJson.features?.length);
+        if (!loaded || !geoJson) {
+          throw new Error('All map data sources failed');
+        }
         
         // 注册地图
         echarts.registerMap('china', geoJson);
@@ -55,14 +79,35 @@ const ChinaMap: React.FC<ChinaMapProps> = ({ visitedCities, onCityToggle, onClos
         
         // 更新图表
         updateProvinceMap(chart);
+        setMapLoading(false);
       } catch (err) {
         console.error('✗ Failed to load map data:', err);
+        setMapLoading(false);
+        // 显示错误信息
         chart.setOption({
           title: {
             text: '地图加载失败',
-            subtext: '请检查网络连接',
+            subtext: '请检查网络连接或稍后重试',
             left: 'center',
-            top: 'middle'
+            top: 'middle',
+            textStyle: {
+              fontSize: 18,
+              color: '#666'
+            },
+            subtextStyle: {
+              fontSize: 14,
+              color: '#999'
+            }
+          },
+          graphic: {
+            type: 'text',
+            left: 'center',
+            top: '60%',
+            style: {
+              text: '💡 提示：您可以使用右侧列表标记省份',
+              fontSize: 14,
+              fill: '#999'
+            }
           }
         });
       }
@@ -210,6 +255,16 @@ const ChinaMap: React.FC<ChinaMapProps> = ({ visitedCities, onCityToggle, onClos
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-7xl h-[90vh] flex overflow-hidden">
         {/* Left Panel - Map */}
         <div className="flex-1 relative">
+          {/* Loading Indicator */}
+          {mapLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+                <p className="text-gray-600 text-sm">正在加载地图...</p>
+              </div>
+            </div>
+          )}
+          
           <div ref={chartRef} className="w-full h-full" />
 
           {/* Close Button */}
