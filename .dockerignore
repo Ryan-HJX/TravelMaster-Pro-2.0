@@ -1,0 +1,23 @@
+# Build artifacts
+travel-master-backend/target/
+travel-master-frontend/node_modules/
+travel-master-frontend/dist/
+__pycache__/
+*.pyc
+.pytest_cache*/
+pytest-cache-files-*/
+
+# IDE / OS
+.git/
+.vscode/
+.lingma/
+.idea/
+*.iml
+
+# Data
+*.db
+db/
+
+# Docker
+.dockerignore
+docker-compose.yml
