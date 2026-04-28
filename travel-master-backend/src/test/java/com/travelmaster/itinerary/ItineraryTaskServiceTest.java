@@ -15,6 +15,7 @@ import com.travelmaster.itinerary.repository.ItineraryGenerationTaskRepository;
 import com.travelmaster.itinerary.repository.ItineraryItemRepository;
 import com.travelmaster.itinerary.repository.ItineraryRepository;
 import com.travelmaster.itinerary.service.ItineraryTaskService;
+import com.travelmaster.config.TravelMasterProperties;
 import com.travelmaster.notification.service.NotificationService;
 import com.travelmaster.ranking.service.RankingService;
 import com.travelmaster.social.repository.PostRepository;
@@ -49,6 +50,7 @@ class ItineraryTaskServiceTest {
     @Mock private NotificationService notificationService;
     @Mock private RankingService rankingService;
     @Mock private BehaviorEventService behaviorEventService;
+    @Mock private TravelMasterProperties properties;
     @Mock private RLock rLock;
 
     private ItineraryTaskService itineraryTaskService;
@@ -64,7 +66,8 @@ class ItineraryTaskServiceTest {
         itineraryTaskService = new ItineraryTaskService(
                 taskRepository, itineraryRepository, itineraryItemRepository,
                 postRepository, aiTaskPublisher, rateLimitService, redissonClient,
-                objectMapper, notificationService, rankingService, behaviorEventService
+                objectMapper, notificationService, rankingService, behaviorEventService,
+                properties
         );
     }
 
