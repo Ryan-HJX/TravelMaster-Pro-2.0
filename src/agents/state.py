@@ -13,6 +13,7 @@ from src.schemas.plan import (
     SkillTrace,
     StructuredItinerary,
     TravelIntent,
+    TransportPlan,  # 新增
     WeatherDay,
     WeatherEntry,
 )
@@ -45,7 +46,13 @@ class TravelState(TypedDict, total=False):
     # ── Stage 6: Scoring ─────────────────────────────────────────
     planning_score: PlanningScore
 
-    # ── Stage 7: Render ──────────────────────────────────────────
+    # ── Stage 7: Finance ─────────────────────────────────────────
+    finance_summary: dict[str, Any] | None
+
+    # ── Stage 8: Transport Planner (新增) ────────────────────────
+    transport_plan: TransportPlan | None
+
+    # ── Stage 9: Render ──────────────────────────────────────────
     plan: StructuredItinerary
 
     # ── Legacy (kept for backward compat) ────────────────────────

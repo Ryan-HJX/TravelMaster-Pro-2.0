@@ -40,6 +40,10 @@ class TravelIntent(BaseModel):
     travel_style: str = "balanced"
     crowd_type: str = "adult"
     transport_preference: str = "public"
+    # 新增：出发地和具体日期
+    departure_city: str = ""  # 出发城市
+    start_date: str = ""      # 开始日期 YYYY-MM-DD
+    end_date: str = ""        # 结束日期 YYYY-MM-DD
 
 
 # ── Weather ──────────────────────────────────────────────────────
@@ -114,6 +118,30 @@ class RouteOption(BaseModel):
     recommended_duration_minutes: int = 0
 
 
+# ── Inter-city Transportation (新增：大交通) ─────────────────────
+
+class InterCityTransport(BaseModel):
+    """城际大交通方案（飞机/火车/长途汽车）"""
+    mode: str = "flight"  # flight|train|bus|self_drive
+    departure_city: str = ""
+    arrival_city: str = ""
+    departure_time: str = ""  # YYYY-MM-DD HH:mm
+    arrival_time: str = ""    # YYYY-MM-DD HH:mm
+    duration_hours: float = 0.0
+    price_estimate: int = 0   # 预估价格(元)
+    carrier: str = ""         # 航空公司/铁路局
+    flight_number: str = ""   # 航班号/车次
+    booking_tips: str = ""    # 预订建议
+
+
+class TransportPlan(BaseModel):
+    """完整的大交通方案（往返）"""
+    outbound: InterCityTransport | None = None  # 去程
+    return_trip: InterCityTransport | None = None  # 返程
+    total_cost: int = 0  # 往返总费用
+    recommendations: list[str] = Field(default_factory=list)  # 推荐建议
+
+
 # ── Day Plan ─────────────────────────────────────────────────────
 
 class DayPlanItem(BaseModel):
@@ -171,6 +199,7 @@ class StructuredItinerary(BaseModel):
     model_provider: str = ""
     mcp_tool_calls: list[MCPToolCall] = Field(default_factory=list)
     finance_summary: dict[str, Any] | None = None
+    transport_plan: TransportPlan | None = None  # 新增：大交通方案
 
     @field_validator("risk_tips", mode="before")
     @classmethod

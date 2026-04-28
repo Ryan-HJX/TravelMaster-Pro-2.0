@@ -21,6 +21,7 @@ from src.planner.stages.route_optimizer import optimize_routes
 from src.planner.stages.weather_adjuster import adjust_for_weather
 from src.planner.stages.scoring import compute_planning_score
 from src.planner.stages.finance_advisor import analyze_finance
+from src.planner.stages.transport_planner import plan_intercity_transport  # 新增
 from src.planner.stages.renderer import render_itinerary
 from src.services.progress_tracker import progress_tracker
 
@@ -200,11 +201,37 @@ async def finance_node(state: TravelState) -> TravelState:
     return {"finance_summary": finance}
 
 
-# ── Node 8: Render ──────────────────────────────────────────────
+# ── Node 8: Transport Planner (新增：大交通规划) ─────────────────
+
+async def transport_node(state: TravelState) -> TravelState:
+    task_id = state.get("task_id", "")
+    print(">>> [AI 步骤] 8. 正在为您规划往返大交通方案...")
+
+    if task_id:
+        await progress_tracker.update_step_status(task_id, "transport_planner", "processing")
+
+    transport_plan = await plan_intercity_transport(state["intent"])
+    
+    # 如果有大交通费用,更新资金规划
+    if transport_plan and transport_plan.total_cost > 0:
+        from src.planner.stages.finance_advisor import calculate_budget
+        updated_finance = calculate_budget(state["intent"], transport_plan.total_cost)
+        finance_summary = state.get("finance_summary", {})
+        finance_summary.update(updated_finance)
+    else:
+        finance_summary = state.get("finance_summary")
+
+    if task_id:
+        await progress_tracker.update_step_status(task_id, "transport_planner", "completed")
+
+    return {"transport_plan": transport_plan, "finance_summary": finance_summary}
+
+
+# ── Node 9: Render ──────────────────────────────────────────────
 
 async def render_node(state: TravelState) -> TravelState:
     task_id = state.get("task_id", "")
-    print(">>> [AI 步骤] 8. 正在为您绘制精美的旅行地图与文档...")
+    print(">>> [AI 步骤] 9. 正在为您绘制精美的旅行地图与文档...")
 
     if task_id:
         await progress_tracker.update_step_status(task_id, "renderer", "processing")
@@ -217,6 +244,7 @@ async def render_node(state: TravelState) -> TravelState:
         weather_forecast=state.get("weather_forecast", []),
         planning_score=state.get("planning_score", PlanningScore()),
         finance_summary=state.get("finance_summary"),
+        transport_plan=state.get("transport_plan"),  # 新增：传入大交通方案
         trace_id=state.get("trace_id", ""),
         prompt_version=state.get("prompt_version", "v2-mcp"),
         mcp_tool_calls=state.get("mcp_tool_calls", []),
@@ -241,6 +269,7 @@ def create_travel_graph():
     workflow.add_node("weather_adjuster", weather_adjuster_node)
     workflow.add_node("scoring", scoring_node)
     workflow.add_node("finance_advisor", finance_node)
+    workflow.add_node("transport_planner", transport_node)  # 新增
     workflow.add_node("renderer", render_node)
 
     workflow.set_entry_point("intent_parser")
@@ -250,7 +279,8 @@ def create_travel_graph():
     workflow.add_edge("route_optimizer", "weather_adjuster")
     workflow.add_edge("weather_adjuster", "scoring")
     workflow.add_edge("scoring", "finance_advisor")
-    workflow.add_edge("finance_advisor", "renderer")
+    workflow.add_edge("finance_advisor", "transport_planner")  # 修改：finance → transport
+    workflow.add_edge("transport_planner", "renderer")  # 修改：transport → renderer
     workflow.add_edge("renderer", END)
 
     return workflow.compile()
