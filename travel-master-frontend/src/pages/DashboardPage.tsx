@@ -14,9 +14,13 @@ import {
   getAnalyticsFunnel, getAnalyticsDestinations, deleteItinerary,
   type PostResponse, type AuthorSummary, type NotificationResponse, type ItineraryResponse
 } from '../services/api';
+import ChinaMap from '../components/ChinaMap';
 
 const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, onLogout }) => {
   const [taskInput, setTaskInput] = useState('北京3天文化游，预算中等，想多逛博物馆和古建');
+  const [departureCity, setDepartureCity] = useState(''); // 新增：出发地
+  const [startDate, setStartDate] = useState(''); // 新增：开始日期
+  const [endDate, setEndDate] = useState(''); // 新增：结束日期
   const [budgetLevel, setBudgetLevel] = useState<'low' | 'medium' | 'high'>('medium');
   const [days, setDays] = useState<number>(3);
   const [feed, setFeed] = useState<PostResponse[]>([]);
@@ -31,7 +35,27 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
   const [showNotifications, setShowNotifications] = useState(false);
   const [commentDialog, setCommentDialog] = useState<{ open: boolean; postId: string | null }>({ open: false, postId: null });
   const [commentText, setCommentText] = useState('');
+  const [visitedProvinces, setVisitedProvinces] = useState<string[]>(() => {
+    // 从 localStorage 加载已访问省份
+    const saved = localStorage.getItem('visitedProvinces');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [showChinaMap, setShowChinaMap] = useState(false);
   const navigate = useNavigate();
+  
+  // 获取今天的日期字符串 (YYYY-MM-DD)
+  const today = new Date().toISOString().split('T')[0];
+  
+  // 处理省份切换 - 保存到 localStorage
+  const handleProvinceToggle = (province: string) => {
+    setVisitedProvinces(prev => {
+      const newVisited = prev.includes(province)
+        ? prev.filter(p => p !== province)
+        : [...prev, province];
+      localStorage.setItem('visitedProvinces', JSON.stringify(newVisited));
+      return newVisited;
+    });
+  };
 
   const handleBellClick = () => {
     setShowNotifications(!showNotifications);
@@ -68,12 +92,30 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
     
     setLoading(true);
     try {
+      // 构建完整的用户输入，包含出发地和日期信息
+      let fullInput = input;
+      
+      // 添加出发地信息
+      if (departureCity) {
+        fullInput = `从${departureCity}出发，` + fullInput;
+      }
+      
+      // 添加具体日期范围
+      if (startDate && endDate) {
+        fullInput += `。旅行时间：从 ${startDate} 到 ${endDate}`;
+      } else if (startDate) {
+        fullInput += `。开始时间：${startDate}`;
+      }
+      
       const task = await createTask({
-        userInput: input,
+        userInput: fullInput,
         preferences: { 
           user_id: user.userId,
           budget: budgetLevel,
-          days: days
+          days: days,
+          departure_city: departureCity, // 传递出发地
+          start_date: startDate, // 传递开始日期
+          end_date: endDate // 传递结束日期
         },
         promptVersion: 'v2-mcp'
       });
@@ -149,15 +191,17 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Sidebar - Desktop */}
-      <aside className="fixed left-0 top-0 bottom-0 w-64 bg-gradient-to-b from-orange-500 to-amber-500 text-white p-6 hidden xl:flex flex-col shadow-xl">
-        <div className="flex items-center gap-3 mb-10 px-2">
+      <aside className="fixed left-0 top-0 bottom-0 w-72 bg-gradient-to-b from-orange-500 to-amber-500 text-white p-6 hidden xl:flex flex-col shadow-xl overflow-y-auto">
+        {/* Logo */}
+        <div className="flex items-center gap-3 mb-8 px-2">
           <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-white shadow-lg">
             <TrendingUp size={24} />
           </div>
           <span className="text-xl font-bold tracking-tight">TravelMaster</span>
         </div>
 
-        <nav className="flex-1 space-y-2">
+        {/* Main Navigation */}
+        <nav className="space-y-2 mb-6">
           <Link to="/" className="flex items-center gap-3 px-4 py-3 bg-white/20 backdrop-blur-sm rounded-xl text-sm font-bold shadow-sm">
             <LayoutDashboard size={18} /> 工作台
           </Link>
@@ -166,16 +210,134 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
           </Link>
         </nav>
 
+        {/* Quick Templates Section */}
+        <div className="mb-6">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-white/80 mb-3 px-2">⚡ 快速创建</h3>
+          <div className="space-y-2">
+            <button
+              onClick={() => {
+                setTaskInput('周末短途游，放松身心，预算适中');
+                setDays(2);
+                setBudgetLevel('medium');
+              }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-white/90 hover:bg-white/10 rounded-xl text-xs font-bold transition-all text-left"
+            >
+              <Calendar size={16} /> 周末短途游
+            </button>
+            <button
+              onClick={() => {
+                setTaskInput('文化探索之旅，参观博物馆和历史古迹');
+                setDays(3);
+                setBudgetLevel('medium');
+              }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-white/90 hover:bg-white/10 rounded-xl text-xs font-bold transition-all text-left"
+            >
+              <History size={16} /> 文化探索之旅
+            </button>
+            <button
+              onClick={() => {
+                setTaskInput('美食之旅，品尝当地特色小吃和餐厅');
+                setDays(2);
+                setBudgetLevel('low');
+              }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-white/90 hover:bg-white/10 rounded-xl text-xs font-bold transition-all text-left"
+            >
+              🍜 美食探索
+            </button>
+            <button
+              onClick={() => {
+                setTaskInput('自然风光之旅，徒步登山看风景');
+                setDays(3);
+                setBudgetLevel('medium');
+              }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-white/90 hover:bg-white/10 rounded-xl text-xs font-bold transition-all text-left"
+            >
+              🏔️ 自然风光
+            </button>
+          </div>
+        </div>
+
+        {/* China Map Entry Button */}
+        <div className="mb-6">
+          <button
+            onClick={() => setShowChinaMap(true)}
+            className="w-full bg-white/10 backdrop-blur-sm hover:bg-white/20 rounded-xl p-4 transition-all group"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-400 to-amber-400 flex items-center justify-center text-white shadow-lg">
+                <MapPin size={20} />
+              </div>
+              <div className="text-left">
+                <div className="text-sm font-bold">我的足迹地图</div>
+                <div className="text-[10px] text-white/70">{visitedProvinces.length} 个省份已点亮</div>
+              </div>
+            </div>
+            <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-white rounded-full transition-all"
+                style={{ width: `${Math.min((visitedProvinces.length / 34) * 100, 100)}%` }}
+              />
+            </div>
+          </button>
+        </div>
+
+        {/* Recent Favorites Section */}
+        {feed.filter(f => f.favorited).length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-white/80 mb-3 px-2">⭐ 我的收藏</h3>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {feed.filter(f => f.favorited).slice(0, 3).map(post => (
+                <div
+                  key={post.postId}
+                  onClick={() => navigate(`/itinerary/${post.itineraryId}`)}
+                  className="bg-white/10 hover:bg-white/20 rounded-lg p-3 cursor-pointer transition-all group"
+                >
+                  <div className="text-xs font-bold line-clamp-2 group-hover:text-white/90">{post.title}</div>
+                  <div className="flex items-center gap-2 mt-2 text-[10px] text-white/60">
+                    <Heart size={10} className="fill-current text-rose-400" />
+                    <span>{post.likeCount}</span>
+                    <Bookmark size={10} className="fill-current text-orange-400" />
+                    <span>{post.favoriteCount}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Travel Tips Section */}
+        <div className="mb-6 bg-white/10 backdrop-blur-sm rounded-xl p-4">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-white/80 mb-3">💡 旅行小贴士</h3>
+          <div className="space-y-2 text-xs text-white/90">
+            <div className="flex items-start gap-2">
+              <span className="text-amber-300">🎒</span>
+              <span>春季出行记得携带雨具和薄外套</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-amber-300">📱</span>
+              <span>提前下载离线地图，避免网络问题</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-amber-300">💰</span>
+              <span>准备少量现金，部分小店不支持移动支付</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Spacer to push logout to bottom */}
+        <div className="flex-1" />
+
+        {/* Logout Button */}
         <button 
           onClick={onLogout}
-          className="flex items-center gap-3 px-4 py-3 text-white/90 hover:bg-white/10 rounded-xl text-sm font-bold transition-all"
+          className="flex items-center gap-3 px-4 py-3 text-white/90 hover:bg-white/10 rounded-xl text-sm font-bold transition-all mt-4"
         >
           <LogOut size={18} /> 退出登录
         </button>
       </aside>
 
       {/* Main Content */}
-      <main className="xl:ml-64 min-h-screen pb-12">
+      <main className="xl:ml-72 min-h-screen pb-12">
         {/* Header */}
         <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 py-5 flex items-center justify-between">
           <div>
@@ -252,6 +414,74 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
                     value={taskInput}
                     onChange={e => setTaskInput(e.target.value)}
                   />
+                </div>
+                
+                {/* 新增：出发地与日期范围选择 */}
+                <div className="mt-6 grid grid-cols-3 gap-4">
+                  {/* 出发地选择 */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                      <MapPin size={16} className="text-orange-600" /> 出发地
+                    </label>
+                    <input
+                      type="text"
+                      value={departureCity}
+                      onChange={(e) => setDepartureCity(e.target.value)}
+                      placeholder="例如：上海"
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm transition-all"
+                    />
+                    {/* 常用城市快捷选择 */}
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {['北京', '上海', '广州', '深圳', '成都'].map(city => (
+                        <button
+                          key={city}
+                          type="button"
+                          onClick={() => setDepartureCity(city)}
+                          className={`text-[10px] px-2 py-1 rounded-full transition-all ${
+                            departureCity === city
+                              ? 'bg-orange-500 text-white'
+                              : 'bg-orange-50 text-orange-600 hover:bg-orange-100'
+                          }`}
+                        >
+                          {city}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 开始日期 */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                      <Calendar size={16} className="text-orange-600" /> 开始日期
+                    </label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      min={today}
+                      onChange={(e) => {
+                        setStartDate(e.target.value);
+                        // 如果结束日期早于新的开始日期，清空结束日期
+                        if (endDate && e.target.value > endDate) {
+                          setEndDate('');
+                        }
+                      }}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm transition-all"
+                    />
+                  </div>
+
+                  {/* 结束日期 */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                      <Calendar size={16} className="text-orange-600" /> 结束日期
+                    </label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      min={startDate || today}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm transition-all"
+                    />
+                  </div>
                 </div>
                 
                 {/* Budget & Days Selector */}
@@ -540,6 +770,15 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
           </aside>
         </div>
       </main>
+
+      {/* China Map Modal */}
+      {showChinaMap && (
+        <ChinaMap
+          visitedCities={visitedProvinces}
+          onCityToggle={handleProvinceToggle}
+          onClose={() => setShowChinaMap(false)}
+        />
+      )}
 
       {/* Comment Dialog */}
       {commentDialog.open && (
