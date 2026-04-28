@@ -48,6 +48,13 @@ public class RankingService {
         redisTemplate.opsForZSet().incrementScore(TOP_CREATORS_KEY, post.getUserId(), 1);
     }
 
+    public void removePost(Post post) {
+        // 从热门帖子排行榜中移除
+        redisTemplate.opsForZSet().remove(HOT_POSTS_KEY, post.getId());
+        // 从创作者排行榜中减少分数（不直接删除用户，因为用户可能有其他帖子）
+        redisTemplate.opsForZSet().incrementScore(TOP_CREATORS_KEY, post.getUserId(), -1);
+    }
+
     @Cacheable(cacheNames = "hotItineraries", key = "'top:' + #limit")
     public List<PostResponse> hotItineraries(int limit) {
         Set<ZSetOperations.TypedTuple<String>> ranked = redisTemplate.opsForZSet()
@@ -77,13 +84,13 @@ public class RankingService {
             return List.of();
         }
         return ranked.stream()
-                .map(userService::getCurrentProfile)
+                .map(userService::getProfileSafe)
                 .map(profile -> new AuthorSummaryResponse(profile.userId(), profile.nickname(), profile.avatarUrl(), false))
                 .toList();
     }
 
     private PostResponse toPostResponse(Post post, boolean liked, boolean favorited) {
-        UserProfileResponse profile = userService.getCurrentProfile(post.getUserId());
+        UserProfileResponse profile = userService.getProfileSafe(post.getUserId());
         return new PostResponse(
                 post.getId(),
                 post.getItineraryId(),

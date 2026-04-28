@@ -12,6 +12,7 @@ import com.travelmaster.user.entity.UserAuth;
 import com.travelmaster.user.repository.AppUserRepository;
 import com.travelmaster.user.repository.UserAuthRepository;
 import com.travelmaster.user.service.UserService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,6 +23,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
+@Slf4j
 @Service
 public class AuthService {
     private final AppUserRepository appUserRepository;
@@ -77,16 +79,29 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest request, String ip) {
+        log.info(">>> [AUTH DEBUG] Login attempt for account: {}", request.account());
         rateLimitService.assertWithinLimit("login", request.account(), ip, 20, 60, Duration.ofMinutes(1));
+        
         AppUser user = findUserByAccount(request.account())
-                .orElseThrow(() -> new AppException(HttpStatus.UNAUTHORIZED, "invalid credentials"));
+                .orElseThrow(() -> {
+                    log.error("!!! [AUTH ERROR] User not found: {}", request.account());
+                    return new AppException(HttpStatus.UNAUTHORIZED, "invalid credentials");
+                });
+        
         UserAuth auth = userAuthRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new AppException(HttpStatus.UNAUTHORIZED, "invalid credentials"));
+                .orElseThrow(() -> {
+                    log.error("!!! [AUTH ERROR] Auth record missing for user: {}", user.getId());
+                    return new AppException(HttpStatus.UNAUTHORIZED, "invalid credentials");
+                });
+        
         if (!passwordEncoder.matches(request.password(), auth.getPasswordHash())) {
+            log.error("!!! [AUTH ERROR] Password mismatch for user: {}", request.account());
             throw new AppException(HttpStatus.UNAUTHORIZED, "invalid credentials");
         }
+        
         auth.setLastLoginAt(LocalDateTime.now());
         userAuthRepository.save(auth);
+        log.info(">>> [AUTH SUCCESS] Authentication passed for account: {}. Issuing tokens...", request.account());
         return issueTokens(user.getId());
     }
 
@@ -106,6 +121,7 @@ public class AuthService {
         String accessToken = jwtTokenService.generateAccessToken(userId);
         String refreshToken = jwtTokenService.generateRefreshToken(userId);
         redisTemplate.opsForValue().set(refreshKey(userId), refreshToken, Duration.ofDays(7));
+        
         UserProfileResponse profile = userService.getCurrentProfile(userId);
         return new AuthResponse(accessToken, refreshToken, Duration.ofHours(2).toSeconds(), profile);
     }

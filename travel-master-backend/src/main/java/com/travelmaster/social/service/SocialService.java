@@ -176,7 +176,7 @@ public class SocialService {
     private PostResponse toPostResponse(Post post, String viewerUserId) {
         boolean liked = viewerUserId != null && postLikeRepository.existsByPostIdAndUserId(post.getId(), viewerUserId);
         boolean favorited = viewerUserId != null && postFavoriteRepository.existsByPostIdAndUserId(post.getId(), viewerUserId);
-        UserProfileResponse author = userService.getCurrentProfile(post.getUserId());
+        UserProfileResponse author = userService.getProfileSafe(post.getUserId());
         boolean following = viewerUserId != null && followRepository.existsByFollowerIdAndFolloweeId(viewerUserId, post.getUserId());
         return new PostResponse(
                 post.getId(),
@@ -191,5 +191,31 @@ public class SocialService {
                 new AuthorSummaryResponse(author.userId(), author.nickname(), author.avatarUrl(), following),
                 post.getPublishedAt()
         );
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = {"postFeed", "hotItineraries", "creatorRanking"}, allEntries = true)
+    public void unpublishByItineraryId(String userId, String itineraryId) {
+        Post post = postRepository.findByItineraryId(itineraryId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "post not found"));
+        
+        // 验证权限：只有发布者可以撤回
+        if (!post.getUserId().equals(userId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "you can only unpublish your own posts");
+        }
+        
+        // 清除排行榜数据
+        rankingService.removePost(post);
+        
+        // 删除点赞、收藏、评论等关联数据
+        commentRepository.deleteByPostId(post.getId());
+        postLikeRepository.deleteByPostId(post.getId());
+        postFavoriteRepository.deleteByPostId(post.getId());
+        
+        // 记录行为事件
+        behaviorEventService.log(userId, "POST_UNPUBLISHED", "post", post.getId(), Map.of("itineraryId", itineraryId));
+        
+        // 删除 post 记录（注意：不删除 itinerary，只撤回发布）
+        postRepository.delete(post);
     }
 }

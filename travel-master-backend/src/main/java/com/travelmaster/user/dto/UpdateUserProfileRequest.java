@@ -12,6 +12,7 @@ public record UpdateUserProfileRequest(
         @Size(max = 500, message = "bio too long")
         String bio,
         String avatarUrl,
+        String phone,
         List<String> preferenceTags
 ) {
 }

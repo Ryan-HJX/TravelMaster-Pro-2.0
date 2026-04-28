@@ -69,4 +69,11 @@ public class SocialController {
                                               HttpServletRequest request) {
         return ApiResponse.success(socialService.followUser(currentUser.userId(), id, request.getRemoteAddr()));
     }
+
+    @PostMapping("/itineraries/{id}/unpublish")
+    public ApiResponse<Void> unpublish(@AuthenticationPrincipal AuthenticatedUser currentUser,
+                                       @PathVariable String id) {
+        socialService.unpublishByItineraryId(currentUser.userId(), id);
+        return ApiResponse.success(null);
+    }
 }

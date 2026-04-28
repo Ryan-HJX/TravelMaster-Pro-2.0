@@ -36,7 +36,6 @@ public class UserService {
         this.objectMapper = objectMapper;
     }
 
-    @Cacheable(cacheNames = "userProfile", key = "#userId")
     public UserProfileResponse getCurrentProfile(String userId) {
         AppUser user = appUserRepository.findById(userId)
                 .filter(found -> found.getStatus() == UserStatus.ACTIVE)
@@ -46,7 +45,15 @@ public class UserService {
         return toResponse(user, profile);
     }
 
-    @CacheEvict(cacheNames = "userProfile", key = "#userId")
+    public UserProfileResponse getProfileSafe(String userId) {
+        try {
+            return getCurrentProfile(userId);
+        } catch (Exception e) {
+            return new UserProfileResponse(userId, null, null, "已注销用户", null, null,
+                    com.travelmaster.user.entity.MembershipTier.STANDARD, 1, 0, List.of());
+        }
+    }
+
     public UserProfileResponse updateProfile(String userId, UpdateUserProfileRequest request) {
         AppUser user = appUserRepository.findById(userId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "user not found"));
@@ -57,6 +64,12 @@ public class UserService {
         profile.setBio(request.bio());
         profile.setAvatarUrl(request.avatarUrl());
         profile.setPreferenceTags(toJson(request.preferenceTags()));
+
+        if (request.phone() != null && !request.phone().isBlank()) {
+            user.setPhone(request.phone());
+            appUserRepository.save(user);
+        }
+
         userProfileRepository.save(profile);
         return toResponse(user, profile);
     }
@@ -82,17 +95,23 @@ public class UserService {
     }
 
     public UserProfileResponse toResponse(AppUser user, UserProfile profile) {
+        if (user == null) return null;
+        String nickname = (profile != null && profile.getNickname() != null) ? profile.getNickname() : "旅行者";
+        String avatar = (profile != null) ? profile.getAvatarUrl() : null;
+        String bio = (profile != null) ? profile.getBio() : null;
+        String tagsJson = (profile != null) ? profile.getPreferenceTags() : "[]";
+
         return new UserProfileResponse(
                 user.getId(),
                 user.getEmail(),
                 user.getPhone(),
-                profile.getNickname(),
-                profile.getAvatarUrl(),
-                profile.getBio(),
-                user.getMembershipTier(),
-                user.getLevel(),
-                user.getPoints(),
-                fromJson(profile.getPreferenceTags())
+                nickname,
+                avatar,
+                bio,
+                user.getMembershipTier() != null ? user.getMembershipTier() : com.travelmaster.user.entity.MembershipTier.STANDARD,
+                user.getLevel() != null ? user.getLevel() : 1,
+                user.getPoints() != null ? user.getPoints() : 0,
+                fromJson(tagsJson)
         );
     }
 

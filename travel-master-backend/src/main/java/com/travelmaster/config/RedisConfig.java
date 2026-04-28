@@ -46,7 +46,7 @@ public class RedisConfig {
 
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory, ObjectMapper objectMapper) {
-        List<String> cacheNames = List.of("userProfile", "postFeed", "postDetail", "creatorRanking", "hotItineraries");
+        List<String> cacheNames = List.of("userProfile_v3", "postFeed", "postDetail", "creatorRanking", "hotItineraries");
 
         CaffeineCacheManager localCacheManager = new CaffeineCacheManager();
         localCacheManager.setCacheNames(cacheNames);
@@ -56,9 +56,17 @@ public class RedisConfig {
                 .maximumSize(1_000)
                 .expireAfterWrite(Duration.ofMinutes(10)));
 
+        // Create a dedicated ObjectMapper for Redis to handle type information correctly
+        ObjectMapper redisObjectMapper = objectMapper.copy();
+        redisObjectMapper.activateDefaultTyping(
+                redisObjectMapper.getPolymorphicTypeValidator(),
+                ObjectMapper.DefaultTyping.NON_FINAL,
+                com.fasterxml.jackson.annotation.JsonTypeInfo.As.PROPERTY
+        );
+
         RedisCacheConfiguration configuration = RedisCacheConfiguration.defaultCacheConfig()
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(
-                        new GenericJackson2JsonRedisSerializer(objectMapper)))
+                        new GenericJackson2JsonRedisSerializer(redisObjectMapper)))
                 .entryTtl(Duration.ofMinutes(30))
                 .disableCachingNullValues();
 
