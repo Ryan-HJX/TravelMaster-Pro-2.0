@@ -169,7 +169,9 @@ class ItineraryTaskServiceTest {
         AiTaskResultRequest result = new AiTaskResultRequest(
                 true, "trace-001", "v1-pro",
                 "Beijing 3 Days", "A cultural tour", "Watch weather",
-                "## Day 1\n...", Map.of(), List.of(day), null
+                "## Day 1\n...", Map.of(), List.of(day), null,
+                "qwen3-plus", "qwen3-plus", null, null, false, "normal",
+                null, null, null, null, null
         );
 
         Itinerary savedItinerary = new Itinerary();
@@ -202,7 +204,9 @@ class ItineraryTaskServiceTest {
         AiTaskResultRequest result = new AiTaskResultRequest(
                 false, "trace-001", "v1-pro",
                 null, null, null, null, Map.of(), List.of(),
-                "LLM timeout"
+                "LLM timeout",
+                null, null, null, null, false, null,
+                null, null, null, null, null
         );
         when(taskRepository.save(any(ItineraryGenerationTask.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -223,7 +227,9 @@ class ItineraryTaskServiceTest {
 
         AiTaskResultRequest result = new AiTaskResultRequest(
                 true, "trace-001", "v1-pro", "title", "summary",
-                null, null, Map.of(), List.of(), null
+                null, null, Map.of(), List.of(), null,
+                null, null, null, null, false, null,
+                null, null, null, null, null
         );
 
         TaskResponse response = itineraryTaskService.completeTask(TASK_ID, result);

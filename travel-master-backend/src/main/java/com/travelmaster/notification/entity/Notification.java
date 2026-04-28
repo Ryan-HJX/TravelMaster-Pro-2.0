@@ -22,7 +22,7 @@ public class Notification extends BaseEntity {
     private String actorId;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
+    @Column(nullable = false, length = 30, columnDefinition = "VARCHAR(30)")
     private NotificationType type;
 
     @Column(nullable = false, length = 200)

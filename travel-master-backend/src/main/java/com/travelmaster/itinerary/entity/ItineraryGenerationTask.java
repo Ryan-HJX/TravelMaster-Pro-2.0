@@ -24,7 +24,7 @@ public class ItineraryGenerationTask extends BaseEntity {
     private String userInput;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 20, columnDefinition = "VARCHAR(20)")
     private TaskStatus status = TaskStatus.PENDING;
 
     @Column(name = "prompt_version", nullable = false, length = 50)
@@ -50,4 +50,23 @@ public class ItineraryGenerationTask extends BaseEntity {
 
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
+
+    // ── 2.0 MCP observability ─────────────────────────────────
+    @Column(name = "model_provider", length = 30)
+    private String modelProvider;
+
+    @Column(name = "model_name", length = 60)
+    private String modelName;
+
+    @Column(name = "mcp_trace", columnDefinition = "LONGTEXT")
+    private String mcpTrace;
+
+    @Column(name = "tool_calls", columnDefinition = "LONGTEXT")
+    private String toolCalls;
+
+    @Column(name = "fallback_used", nullable = false)
+    private boolean fallbackUsed = false;
+
+    @Column(name = "planning_score", length = 20)
+    private String planningScore;
 }

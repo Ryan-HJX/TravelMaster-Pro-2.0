@@ -156,6 +156,13 @@ public class ItineraryTaskService {
         itinerary.setRiskTips(result.riskTips());
         itinerary.setRenderedMarkdown(result.renderedMarkdown());
         itinerary.setStructuredContent(writeJson(result.structuredContent()));
+        // 2.0 enhanced fields
+        itinerary.setStartLocation(result.startLocation());
+        itinerary.setEndLocation(result.endLocation());
+        itinerary.setTravelModePreference(result.travelModePreference());
+        itinerary.setWeatherSummary(result.weatherSummary());
+        itinerary.setFinanceSummary(result.financeSummary());
+        itinerary.setPlanningScore(result.planningScore());
         Itinerary savedItinerary = itineraryRepository.save(itinerary);
 
         if (result.days() != null) {
@@ -188,6 +195,13 @@ public class ItineraryTaskService {
         task.setItineraryId(savedItinerary.getId());
         task.setFailureReason(null);
         task.setResultPayload(writeJson(result));
+        // 2.0 MCP observability
+        task.setModelProvider(result.modelProvider());
+        task.setModelName(result.modelName());
+        task.setMcpTrace(result.mcpTrace());
+        task.setToolCalls(result.toolCalls());
+        task.setFallbackUsed(Boolean.TRUE.equals(result.fallbackUsed()));
+        task.setPlanningScore(result.planningScore());
         taskRepository.save(task);
         notificationService.createNotification(task.getUserId(), null, NotificationType.TASK_COMPLETED,
                 "Itinerary is ready", result.summary(), "itinerary", savedItinerary.getId());

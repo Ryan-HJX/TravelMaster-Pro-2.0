@@ -38,4 +38,23 @@ public class Itinerary extends BaseEntity {
 
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
+
+    // ── 2.0 enhancements ─────────────────────────────────────
+    @Column(name = "start_location", length = 200)
+    private String startLocation;
+
+    @Column(name = "end_location", length = 200)
+    private String endLocation;
+
+    @Column(name = "travel_mode_preference", length = 30)
+    private String travelModePreference;
+
+    @Column(name = "weather_summary", columnDefinition = "TEXT")
+    private String weatherSummary;
+
+    @Column(name = "finance_summary", columnDefinition = "TEXT")
+    private String financeSummary;
+
+    @Column(name = "planning_score", length = 20)
+    private String planningScore;
 }

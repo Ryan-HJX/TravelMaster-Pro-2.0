@@ -29,9 +29,14 @@ async def test_generate_plan_returns_structured_itinerary(user_input: str):
     assert plan.summary
     assert plan.rendered_markdown.startswith("#")
     assert len(plan.days) >= 1
-    assert len(plan.weather) >= 1
-    assert len(plan.pois) >= 2
-    assert len(plan.skill_traces) >= 5
+
+    # 2.0: enriched_pois from Amap MCP
+    assert plan.enriched_pois is not None
+    # 2.0: planning score
+    assert plan.planning_score is not None
+    assert plan.planning_score.level in ("relaxed", "normal", "tight", "infeasible")
+    # 2.0: model provider tracked
+    assert plan.model_provider
 
     for day in plan.days:
         assert day.items, "each day should contain at least one item"

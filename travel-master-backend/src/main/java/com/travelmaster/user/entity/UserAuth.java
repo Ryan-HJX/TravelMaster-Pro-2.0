@@ -21,7 +21,7 @@ public class UserAuth extends BaseEntity {
     private String userId;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 20, columnDefinition = "VARCHAR(20)")
     private AuthProvider provider = AuthProvider.PASSWORD;
 
     @Column(name = "password_hash", nullable = false, length = 255)

@@ -22,7 +22,11 @@ async def create_plan(request: CompatPlanRequest):
         return BaseResponse.success(
             data={
                 "itinerary": plan.rendered_markdown,
-                "waypoints": [poi.model_dump() for poi in plan.pois],
+                "waypoints": [poi.model_dump() for poi in plan.enriched_pois],
+                "route_options": [ro.model_dump() for ro in plan.route_options],
+                "weather_forecast": [w.model_dump() for w in plan.weather_forecast],
+                "planning_score": plan.planning_score.model_dump(),
+                "model_provider": plan.model_provider,
                 "structured": plan.model_dump(),
             }
         )

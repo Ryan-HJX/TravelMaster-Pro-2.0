@@ -4,15 +4,12 @@ langchain-core==0.3.74
 langchain-ollama==0.3.0
 langchain-openai==0.3.27
 langchain-community==0.3.27
-langchain-tavily==0.1.5
+openai>=1.60.0
 pydantic-settings
 fastapi
 uvicorn
-aiosqlite
 aiohttp
 redis>=5.2.0
 httpx>=0.28.0
-ddgs
-trafilatura
 pytest>=8.0.0
 pytest-asyncio>=0.23.0

@@ -22,7 +22,7 @@ public class AppUser extends BaseEntity {
     private String phone;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "membership_tier", nullable = false, length = 20)
+    @Column(name = "membership_tier", nullable = false, length = 20, columnDefinition = "VARCHAR(20)")
     private MembershipTier membershipTier = MembershipTier.STANDARD;
 
     @Column(nullable = false)
@@ -32,6 +32,6 @@ public class AppUser extends BaseEntity {
     private Integer points = 0;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 20, columnDefinition = "VARCHAR(20)")
     private UserStatus status = UserStatus.ACTIVE;
 }

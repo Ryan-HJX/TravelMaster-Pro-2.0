@@ -13,7 +13,19 @@ public record AiTaskResultRequest(
         String renderedMarkdown,
         Map<String, Object> structuredContent,
         List<DayPlan> days,
-        String failureReason
+        String failureReason,
+        // ── 2.0 MCP enhanced fields ──────────────────────────
+        String modelProvider,
+        String modelName,
+        String mcpTrace,
+        String toolCalls,
+        Boolean fallbackUsed,
+        String planningScore,
+        String startLocation,
+        String endLocation,
+        String travelModePreference,
+        String weatherSummary,
+        String financeSummary
 ) {
     public record DayPlan(
             Integer dayNumber,

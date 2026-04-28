@@ -39,7 +39,7 @@ CREATE TABLE itinerary_generation_task (
     updated_at DATETIME(6) NOT NULL,
     user_id VARCHAR(36) NOT NULL,
     user_input TEXT NOT NULL,
-    status VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     prompt_version VARCHAR(50) NOT NULL,
     trace_id VARCHAR(64) NOT NULL,
     request_payload LONGTEXT NOT NULL,
