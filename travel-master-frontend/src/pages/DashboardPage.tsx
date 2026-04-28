@@ -3,19 +3,22 @@ import { motion } from 'framer-motion';
 import { 
   Plus, Search, TrendingUp, Users, Bell, 
   MessageSquare, Heart, Bookmark, ArrowUpRight,
-  LogOut, Settings, LayoutDashboard, History, MapPin, Trash2
+  LogOut, Settings, LayoutDashboard, History, MapPin, Trash2,
+  Wallet, Calendar, Coins
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
   getFeed, getNotifications, getAnalyticsOverview, 
   getHotItineraries, getCreatorRankings, createTask,
-  getHistory, likePost, favoritePost, followUser,
+  getHistory, likePost, favoritePost, followUser, commentOnPost,
   getAnalyticsFunnel, getAnalyticsDestinations, deleteItinerary,
   type PostResponse, type AuthorSummary, type NotificationResponse, type ItineraryResponse
 } from '../services/api';
 
 const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, onLogout }) => {
   const [taskInput, setTaskInput] = useState('北京3天文化游，预算中等，想多逛博物馆和古建');
+  const [budgetLevel, setBudgetLevel] = useState<'low' | 'medium' | 'high'>('medium');
+  const [days, setDays] = useState<number>(3);
   const [feed, setFeed] = useState<PostResponse[]>([]);
   const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
   const [history, setHistory] = useState<ItineraryResponse[]>([]);
@@ -26,6 +29,8 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
   const [destinations, setDestinations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [commentDialog, setCommentDialog] = useState<{ open: boolean; postId: string | null }>({ open: false, postId: null });
+  const [commentText, setCommentText] = useState('');
   const navigate = useNavigate();
 
   const handleBellClick = () => {
@@ -65,7 +70,11 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
     try {
       const task = await createTask({
         userInput: input,
-        preferences: { user_id: user.userId },
+        preferences: { 
+          user_id: user.userId,
+          budget: budgetLevel,
+          days: days
+        },
         promptVersion: 'v2-mcp'
       });
       navigate(`/itinerary/${task.taskId}`);
@@ -88,6 +97,52 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
       const message = err.response?.data?.message || '删除失败，请稍后重试';
       alert(message);
       console.error('删除行程失败:', err);
+    }
+  };
+
+  const handleLike = async (e: React.MouseEvent, postId: string) => {
+    e.stopPropagation();
+    try {
+      await likePost(postId);
+      // 乐观更新UI
+      setFeed(prev => prev.map(post => 
+        post.postId === postId 
+          ? { ...post, likeCount: post.likeCount + 1, liked: true }
+          : post
+      ));
+    } catch (err) {
+      console.error('点赞失败:', err);
+      alert('操作失败，请稍后重试');
+    }
+  };
+
+  const handleFavorite = async (e: React.MouseEvent, postId: string) => {
+    e.stopPropagation();
+    try {
+      await favoritePost(postId);
+      // 乐观更新UI
+      setFeed(prev => prev.map(post => 
+        post.postId === postId 
+          ? { ...post, favoriteCount: post.favoriteCount + 1, favorited: true }
+          : post
+      ));
+    } catch (err) {
+      console.error('收藏失败:', err);
+      alert('操作失败，请稍后重试');
+    }
+  };
+
+  const handleComment = async (postId: string) => {
+    if (!commentText.trim()) return;
+    try {
+      await commentOnPost(postId, commentText);
+      setCommentText('');
+      setCommentDialog({ open: false, postId: null });
+      // Show success notification
+      alert('评论成功！');
+    } catch (err) {
+      console.error('评论失败:', err);
+      alert('评论失败，请稍后重试');
     }
   };
 
@@ -193,11 +248,101 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
                 <div className="relative">
                   <textarea 
                     className="w-full min-h-[140px] p-6 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-orange-500/10 transition-all outline-none text-slate-700 text-lg leading-relaxed placeholder:text-slate-300"
-                    placeholder="例如：北京3天文化游，预算中等，想多逛博物馆和古建..."
+                    placeholder="例如：北京3天文化游，想多逛博物馆和古建..."
                     value={taskInput}
                     onChange={e => setTaskInput(e.target.value)}
                   />
                 </div>
+                
+                {/* Budget & Days Selector */}
+                <div className="mt-6 grid grid-cols-2 gap-4">
+                  {/* Budget Level */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                      <Coins size={16} className="text-orange-600" /> 预算级别
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setBudgetLevel('low')}
+                        className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                          budgetLevel === 'low'
+                            ? 'bg-green-500 text-white shadow-md shadow-green-200'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        经济型
+                      </button>
+                      <button
+                        onClick={() => setBudgetLevel('medium')}
+                        className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                          budgetLevel === 'medium'
+                            ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        舒适型
+                      </button>
+                      <button
+                        onClick={() => setBudgetLevel('high')}
+                        className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                          budgetLevel === 'high'
+                            ? 'bg-purple-500 text-white shadow-md shadow-purple-200'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        豪华型
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Days Selector */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                      <Calendar size={16} className="text-orange-600" /> 旅行天数
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setDays(Math.max(1, days - 1))}
+                        className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 font-bold transition-all"
+                      >
+                        -
+                      </button>
+                      <div className="flex-1 text-center">
+                        <span className="text-2xl font-black text-orange-600">{days}</span>
+                        <span className="text-sm text-slate-500 ml-1">天</span>
+                      </div>
+                      <button
+                        onClick={() => setDays(Math.min(15, days + 1))}
+                        className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 font-bold transition-all"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Yingmi Finance Feature Card */}
+                <div className="mt-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-orange-200 rounded-2xl">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white flex-shrink-0 shadow-lg">
+                      <Wallet size={20} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-bold text-slate-900 mb-1">💰 智能资金规划助手</h3>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        基于<b>盈米金融 MCP</b>，为您提供旅行预算分析、基金流动性管理、现金预留建议及旅行保险推荐。
+                        让每一分钱都花在刀刃上！
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <span className="px-2 py-1 bg-white/80 text-orange-700 rounded-lg text-[10px] font-bold border border-orange-200">📊 预算分解</span>
+                        <span className="px-2 py-1 bg-white/80 text-orange-700 rounded-lg text-[10px] font-bold border border-orange-200">💳 基金推荐</span>
+                        <span className="px-2 py-1 bg-white/80 text-orange-700 rounded-lg text-[10px] font-bold border border-orange-200">🛡️ 保险建议</span>
+                        <span className="px-2 py-1 bg-white/80 text-orange-700 rounded-lg text-[10px] font-bold border border-orange-200">📝 消费追踪</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="mt-6 flex items-center justify-between">
                   <div className="flex gap-2">
                     <span className="px-3 py-1 bg-orange-50 text-orange-600 rounded-lg text-xs font-bold border border-indigo-100">高德地图优化</span>
@@ -271,40 +416,85 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
                 </div>
                 <Link to="/" className="text-sm font-bold text-orange-600 hover:underline">查看全部</Link>
               </div>
-              <div className="grid sm:grid-cols-2 gap-6">
-                {feed.map(post => (
-                  <motion.article 
-                    whileHover={{ y: -4 }}
-                    key={post.postId} 
-                    className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all"
-                  >
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold border border-slate-200">
-                        {post.author?.nickname?.[0] || 'U'}
+              
+              {feed.length === 0 ? (
+                <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center">
+                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                    <Search size={32} />
+                  </div>
+                  <p className="text-slate-400 font-medium">暂无灵感分享内容</p>
+                  <p className="text-xs text-slate-300 mt-2">发布您的第一个行程，成为创作者吧！</p>
+                </div>
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-6">
+                  {feed.map(post => (
+                    <motion.article 
+                      whileHover={{ y: -4, scale: 1.02 }}
+                      key={post.postId} 
+                      className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-lg hover:border-orange-200 transition-all cursor-pointer group"
+                      onClick={() => navigate(`/itinerary/${post.itineraryId}`)}
+                    >
+                      {/* Author Header */}
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-amber-400 flex items-center justify-center text-white font-bold border-2 border-white shadow-md">
+                          {post.author?.nickname?.[0] || 'U'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-bold text-slate-900 truncate">{post.author?.nickname || '匿名旅者'}</div>
+                          <div className="text-[10px] text-slate-400 font-bold uppercase">{new Date(post.publishedAt).toLocaleDateString('zh-CN')}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="text-sm font-bold text-slate-900">{post.author?.nickname || '匿名旅者'}</div>
-                        <div className="text-[10px] text-slate-400 font-bold uppercase">{new Date(post.publishedAt).toLocaleDateString()}</div>
+                      
+                      {/* Content */}
+                      <h3 className="text-lg font-bold text-slate-900 mb-2 line-clamp-1 group-hover:text-orange-600 transition-colors">{post.title}</h3>
+                      <p className="text-sm text-slate-500 line-clamp-3 mb-6 leading-relaxed">{post.contentExcerpt}</p>
+                      
+                      {/* Actions */}
+                      <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                        <div className="flex gap-3">
+                          <button 
+                            onClick={(e) => handleLike(e, post.postId)}
+                            className={`flex items-center gap-1.5 transition-all active:scale-90 ${post.liked ? 'text-rose-500' : 'text-slate-400 hover:text-rose-500'}`}
+                          >
+                            <motion.div
+                              whileTap={{ scale: 1.3 }}
+                              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                            >
+                              <Heart size={18} className={post.liked ? 'fill-current' : ''} />
+                            </motion.div>
+                            <span className="text-xs font-bold">{post.likeCount}</span>
+                          </button>
+                          <button 
+                            onClick={(e) => handleFavorite(e, post.postId)}
+                            className={`flex items-center gap-1.5 transition-all active:scale-90 ${post.favorited ? 'text-orange-500' : 'text-slate-400 hover:text-orange-500'}`}
+                          >
+                            <motion.div
+                              whileTap={{ scale: 1.3 }}
+                              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                            >
+                              <Bookmark size={18} className={post.favorited ? 'fill-current' : ''} />
+                            </motion.div>
+                            <span className="text-xs font-bold">{post.favoriteCount}</span>
+                          </button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCommentDialog({ open: true, postId: post.postId });
+                            }}
+                            className="flex items-center gap-1.5 text-slate-400 hover:text-blue-500 transition-colors"
+                          >
+                            <MessageSquare size={18} />
+                            <span className="text-xs font-bold">{post.commentCount}</span>
+                          </button>
+                        </div>
+                        <div className="p-2 bg-slate-50 rounded-lg text-slate-400 group-hover:bg-orange-50 group-hover:text-orange-600 transition-colors">
+                          <ArrowUpRight size={20} />
+                        </div>
                       </div>
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-900 mb-2 line-clamp-1">{post.title}</h3>
-                    <p className="text-sm text-slate-500 line-clamp-3 mb-6 leading-relaxed">{post.contentExcerpt}</p>
-                    <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                      <div className="flex gap-4">
-                        <button className="flex items-center gap-1.5 text-slate-400 hover:text-rose-500 transition-colors">
-                          <Heart size={18} /> <span className="text-xs font-bold">{post.likeCount}</span>
-                        </button>
-                        <button className="flex items-center gap-1.5 text-slate-400 hover:text-orange-500 transition-colors">
-                          <Bookmark size={18} /> <span className="text-xs font-bold">{post.favoriteCount}</span>
-                        </button>
-                      </div>
-                      <Link to={`/itinerary/${post.itineraryId}`} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-orange-600 transition-colors">
-                        <ArrowUpRight size={20} />
-                      </Link>
-                    </div>
-                  </motion.article>
-                ))}
-              </div>
+                    </motion.article>
+                  ))}
+                </div>
+              )}
             </section>
           </div>
 
@@ -350,6 +540,57 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
           </aside>
         </div>
       </main>
+
+      {/* Comment Dialog */}
+      {commentDialog.open && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">发表评论</h3>
+              <button 
+                onClick={() => setCommentDialog({ open: false, postId: null })}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <textarea
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder="分享你的想法..."
+              rows={4}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all resize-none mb-4"
+              autoFocus
+            />
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setCommentDialog({ open: false, postId: null });
+                  setCommentText('');
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => commentDialog.postId && handleComment(commentDialog.postId)}
+                disabled={!commentText.trim()}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                发表评论
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
