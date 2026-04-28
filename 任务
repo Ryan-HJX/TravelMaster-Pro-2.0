@@ -1,0 +1,200 @@
+这是方案：
+# TravelMaster Pro 求职版一期方案
+
+## Summary
+- 项目主轴改为：`Java Spring Boot` 负责核心业务后端，`Python FastAPI + LangGraph` 退为内部 AI 规划服务。这样简历叙事会更像“高并发旅游社交平台”，而不是“一个接了 LLM 的 Demo”。
+- 现状判断：`Prompt/Chain` 已有雏形；`Harness` 基本没有；`Skills` 还只是零散工具函数，没有形成可复用能力层；Java 端目前主要是转发与历史记录，后端工程深度不足。
+- 一期范围按求职 MVP 收敛：做用户、行程生成任务、公开发布、点赞评论收藏关注、通知、排行榜、缓存、限流、分布式锁、SQL 报表；`多人协同编辑`、`ClickHouse`、`第三方微信/QQ 登录`、`优惠推送` 暂不落地。
+- 数据栈定为：`MySQL + Redis`。Java 服务成为唯一业务数据源；Python AI 服务改为无状态，不再持有 `SQLite/H2` 业务真相。
+
+## Implementation Changes
+- 业务架构：
+  - Java 拆成 `auth / user / itinerary / social / notification / ranking / analytics / ai-task` 模块。
+  - Python 保留为独立 `ai-planner` 服务，只负责解析需求、检索、约束校验、生成结构化行程。
+  - 行程生成改为异步任务：Java 写入任务表并投递 `Redis Stream`，Python 消费后回写结果，前端通过轮询或 WebSocket 收结果。
+- 数据与 SQL：
+  - 引入 `Flyway` 管理 DDL，废弃 H2 作为主存储，统一切到 MySQL。
+  - 核心表定为：`users / user_profile / user_auth / itinerary_generation_task / itineraries / itinerary_items / posts / post_likes / post_favorites / comments / follows / notifications / user_behavior_events`。
+  - CRUD 保留 JPA；复杂查询和报表查询用 `MyBatis` 或手写 SQL，重点展示索引、分页、聚合、排行榜、漏斗统计。
+  - 必做索引：关注关系唯一索引、帖子时间线索引、评论时间索引、任务状态索引、通知未读索引、行为事件时间索引。
+- 社交与通知：
+  - 行程先生成，再由用户“发布”为帖子；帖子与行程解耦。
+  - 点赞、收藏、关注写 MySQL，热点计数和排行榜写 Redis；定时回刷或事件驱动回写聚合字段。
+  - 通知采用 `Redis Stream + WebSocket`，支持点赞/评论/关注/任务完成/天气提醒。
+- 高并发与缓存：
+  - 登录、发帖、生成行程、互动接口加 `Redis` 限流，按 `userId + IP` 双维度。
+  - 行程生成接口加幂等键和 `Redisson` 分布式锁，避免重复提交。
+  - 热门榜单、用户主页、帖子详情用 `Caffeine + Redis` 两级缓存，失效由领域事件触发。
+- AI 规划层：
+  - 当前线性 `planner -> researcher -> validator -> generator` 保留思路，但改为结构化输出，不再只拼 Markdown。
+  - Prompt 工程升级为版本化模板，所有节点输出走 `Pydantic` schema，记录 `prompt_version / model / latency / token usage / trace_id`。
+  - Chain 升级为并发 fan-out：天气、POI 校验、路线、模板召回并发执行，加超时、重试、降级。
+  - Skills 明确抽象为：`intent_parse / template_recall / weather / poi_verify / route_plan / social_context / itinerary_render`，每个 skill 有统一输入输出、超时和缓存策略。
+- Harness 体系：
+  - Prompt Harness：沉淀 30-50 条标准旅游请求，校验结构化输出合法性、地点真实性、时间约束、天气插入、失败降级。
+  - Contract Harness：Java<->Python 内部接口、AMap/搜索工具全部做 mock 集成测试。
+  - Load Harness：用 `k6` 做登录、刷 feed、点赞、生成任务提交与消费压测，输出 QPS、P95、失败率。
+- 求职交付物：
+  - 补齐中文 README、架构图、ER 图、核心时序图、Flyway SQL、压测报告、核心 SQL 清单。
+  - 前端只保留演示壳和最小社交页面，不做重 UI，重点让面试官能走通链路。
+
+## Public APIs / Interfaces
+- 外部 API：
+  - `POST /api/auth/register|login|refresh`
+  - `GET/PUT /api/users/me`
+  - `POST /api/itinerary-tasks`，返回 `{taskId,status}`
+  - `GET /api/itinerary-tasks/{taskId}`
+  - `POST /api/itineraries/{id}/publish`
+  - `GET /api/feed`、`POST /api/posts/{id}/like|favorite`
+  - `POST /api/posts/{id}/comments`
+  - `POST /api/users/{id}/follow`
+  - `GET /api/notifications`、`POST /api/notifications/{id}/read`
+  - `GET /api/rankings/hot-itineraries|creators`
+  - `GET /api/analytics/overview|funnel|destinations`
+- 内部 AI 接口：
+  - Java 发给 Python 的请求包含 `taskId、userId、preferences、travel_constraints、promptVersion`。
+  - Python 返回结构化 `days[] / poi[] / transport[] / weather[] / summary / riskTips`，Java 再渲染为帖子展示内容。
+- 关键类型变化：
+  - 当前 `PlanRequest/PlanResponse` 不再作为核心业务协议，只保留兼容层。
+  - 历史记录模型升级为“生成任务 + 行程实体 + 发布帖子”三层模型。
+
+## Test Plan
+- Java：
+  - `auth`、`social`、`notification`、`ai-task` 的 service/controller 单测。
+  - MySQL + Redis 的集成测试，覆盖登录、发帖、点赞、关注、通知、任务状态流转。
+- Python：
+  - 每个 skill 的单测与 mock 测试。
+  - LangGraph 工作流测试，覆盖正常生成、工具超时、搜索为空、校验失败重试。
+- SQL：
+  - Flyway 迁移可重复执行。
+  - 关键查询做 `EXPLAIN` 验证，至少覆盖 feed、榜单、未读通知、转化漏斗。
+- 性能：
+  - 压测目标：生成任务提交可稳定限流，互动接口在缓存命中下保持低延迟，排行榜查询走 Redis 热路径。
+
+## Assumptions
+- 一期明确不做多人协同编辑、ClickHouse、微信/QQ 真登录、优惠推送真实商单接入。
+- Java 是求职主角，Python 是 AI 能力配套；面试重点放在领域建模、SQL、缓存、异步任务、并发治理、可观测性。
+- 采用 `Docker Compose` 作为本地交付标准环境，包含 `nginx / java-api / python-ai / mysql / redis`。
+- 现有前端仅做演示，不以完整产品 UI 为目标。
+
+
+
+
+
+这是现在的进度：
+可以。下面这份可以直接交给另一个 AI 继续接手。
+
+**已完成**
+
+1. Java 后端已重构成“主业务后端”骨架，核心包已落下：
+   - `auth / user / itinerary / social / notification / ranking / analytics / ai / security / config / common / compat`
+   - 主要目录在 [travel-master-backend/src/main/java/com/travelmaster](/E:/my_project/TravelMaster/travel-master-backend/src/main/java/com/travelmaster)
+
+2. Java 基础设施已改好：
+   - `MySQL + Redis + Flyway + JWT + WebSocket + Caffeine + Redisson`
+   - Maven 依赖已更新：[pom.xml](/E:/my_project/TravelMaster/travel-master-backend/pom.xml)
+   - 应用配置已切到 MySQL/Redis：[application.properties](/E:/my_project/TravelMaster/travel-master-backend/src/main/resources/application.properties)
+   - Flyway 初始表结构已写：[V1__travelmaster_pro_schema.sql](/E:/my_project/TravelMaster/travel-master-backend/src/main/resources/db/migration/V1__travelmaster_pro_schema.sql)
+
+3. Java 业务 API 基本骨架已实现：
+   - 认证：`/api/auth/register|login|refresh`
+   - 用户：`/api/users/me`
+   - 行程任务：`/api/itinerary-tasks`、`/api/itinerary-tasks/{taskId}`
+   - 发布：`/api/itineraries/{id}/publish`
+   - Feed/互动：`/api/feed`、`/api/posts/{id}/like|favorite|comments`
+   - 关注：`/api/users/{id}/follow`
+   - 通知：`/api/notifications`、`/api/notifications/{id}/read`
+   - 榜单：`/api/rankings/hot-itineraries|creators`
+   - 分析：`/api/analytics/overview|funnel|destinations`
+   - AI 回调：`/api/internal/ai/tasks/{taskId}/complete`
+
+4. Python AI 服务已重构成结构化规划服务：
+   - 新 schema 在 [src/schemas/plan.py](/E:/my_project/TravelMaster/src/schemas/plan.py)
+   - 新 skills 在 [src/skills](/E:/my_project/TravelMaster/src/skills)
+   - 新 LangGraph workflow 在 [src/agents/workflow.py](/E:/my_project/TravelMaster/src/agents/workflow.py)
+   - 新服务入口在 [src/services/travel_service.py](/E:/my_project/TravelMaster/src/services/travel_service.py)
+   - 兼容同步接口保留在 [src/api/v1/plan.py](/E:/my_project/TravelMaster/src/api/v1/plan.py)
+   - Redis Stream worker 已实现：[src/worker/stream_worker.py](/E:/my_project/TravelMaster/src/worker/stream_worker.py)
+
+5. Python 侧“Prompt/Chain/Skills”已经不是空壳了：
+   - `intent_parse / template_recall / weather / poi_verify / route_plan / social_context / itinerary_render`
+   - 输出改成结构化 `StructuredItinerary`，不再只拼 Markdown
+
+6. 前端做了最小 demo 壳：
+   - 新首页在 [travel-master-frontend/src/App.tsx](/E:/my_project/TravelMaster/travel-master-frontend/src/App.tsx)
+   - 新 API 客户端在 [travel-master-frontend/src/services/api.ts](/E:/my_project/TravelMaster/travel-master-frontend/src/services/api.ts)
+   - 目标是走通“登录 -> 创建任务 -> 轮询结果 -> 发布 -> Feed/通知/榜单/分析”
+
+7. 兼容层做了一部分：
+   - 老 `/api/travel/*` 路由换成 compat 实现
+   - 相关文件在 [travel-master-backend/src/main/java/com/travelmaster/compat](/E:/my_project/TravelMaster/travel-master-backend/src/main/java/com/travelmaster/compat)
+
+**已验证**
+
+- Java：`mvn -q test` 可通过，至少说明当前 Java 代码能编译通过。
+- Python：
+  - `python -m compileall main.py src` 通过
+  - `python -m pytest src\tests -q -o cache_dir=.pytest_cache_local` 通过，`13 passed`
+  - 还跑过一轮 `TravelService().generate_plan(...)` smoke test，通过
+
+**没完成 / 还需要继续做**
+
+1. **Docker Compose 和 Nginx 还没做**
+   - 计划里的 `nginx / java-api / python-ai / mysql / redis` 没落地
+
+2. **README / ARCHITECTURE 文档没补**
+   - 当前 `git status` 里这两个文件还是删除状态：
+   - `README.md`
+   - `ARCHITECTURE.md`
+
+3. **Java 测试并没有真正补齐**
+   - `mvn test` 通过主要是编译过了
+   - 我没有新增成体系的 `auth/social/notification/ai-task` 单测和集成测试
+
+4. **前端没有最终构建成功**
+   - `npm run build` 卡在 Vite 的 OS 级错误：`spawn EPERM`
+   - 不是 TS 类型错误了，之前的类型错误已经修掉
+   - 现在失败点更像当前 Windows/沙箱环境的执行权限问题，需要继续排查 `vite.config.ts` 相关调用链
+
+5. **前后端联调没做完**
+   - 没启动 MySQL / Redis / Java / Python 全链路
+   - 没验证 Redis Stream 从 Java 投递到 Python worker，再回调 Java 完成任务的真实链路
+
+6. **通知 WebSocket 只有后端，没有前端订阅**
+   - 后端推送逻辑有了
+   - 前端还没接 `/ws` 或 `/topic/users/{userId}/notifications`
+
+7. **排行榜 / 两级缓存 / 分布式锁是代码级实现，未做运行级验证**
+   - 尤其 Redis、Redisson、TwoLevelCache 只做了代码实现，没有真实压测或联调
+
+8. **兼容层不完整**
+   - 老接口里的删除逻辑是禁用的
+   - 老历史接口只是“部分兼容”，不等价于旧前端原始数据结构
+
+9. **Load Harness 没做**
+   - `k6` 压测脚本、QPS/P95 报告都还没写
+
+10. **SQL 能力展示还缺一部分交付物**
+   - 虽然 Flyway 和 analytics SQL 有了
+   - 但还没补 `EXPLAIN` 结果、核心 SQL 清单、索引设计说明文档
+
+**高优先级下一步**
+
+1. 先补 `docker-compose.yml` 和 Nginx 配置，跑通 MySQL/Redis/Java/Python。
+2. 启动后验证：
+   - 注册/登录
+   - 创建 `itinerary-task`
+   - Python worker 消费 stream
+   - Java 回调落库
+   - 发布帖子
+   - 点赞/收藏/通知/榜单
+3. 修前端 `vite build` 的 `spawn EPERM`。
+4. 补 README、ARCHITECTURE、ER 图、时序图。
+5. 补 Java 单测和最少一组 API 集成测试。
+6. 再做 `k6` 压测脚本。
+
+**额外提醒**
+
+- `travel-master-backend/target/**` 已被本地构建改动，属于构建产物，继续推进前最好不要提交这些文件。
+- Python 环境里我安装过这些缺失依赖：`redis pytest pytest-asyncio`。
+- 现在最适合另一个 AI 继续接手的起点，是从“联调和交付物补齐”开始，不是再重写架构。
