@@ -10,6 +10,7 @@ from typing import Optional
 import redis.asyncio as redis
 
 from src.config.settings import settings
+from src.core.constants import WORKFLOW_STEPS_CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -44,17 +45,7 @@ class ProgressStep:
         }
 
 
-# Define all steps in the workflow
-WORKFLOW_STEPS = [
-    ("intent_parser", "意图解析", "正在深度解析您的旅行意图..."),
-    ("geo_grounding", "地理校准", "正在通过高德地图进行地理位置校准..."),
-    ("poi_selector", "景点筛选", "正在筛选目的地附近的精品景点和餐厅..."),
-    ("route_optimizer", "路线规划", "正在为您规划最合理的交通路线..."),
-    ("weather_adjuster", "天气调整", "正在结合目的地天气情况调整行程..."),
-    ("scoring", "质量评估", "正在对行程质量进行多维度评估打分..."),
-    ("finance_advisor", "资金建议", "正在结合盈米金融能力为您生成资金建议..."),
-    ("renderer", "行程渲染", "正在为您绘制精美的旅行地图与文档..."),
-]
+WORKFLOW_STEPS = WORKFLOW_STEPS_CONFIG
 
 
 class ProgressTracker:

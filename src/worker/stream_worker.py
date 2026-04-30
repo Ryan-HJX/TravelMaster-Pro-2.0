@@ -21,27 +21,25 @@ async def process_stream_tasks() -> None:
     # Start from the end to avoid reprocessing old messages
     last_id = '$'  # ✅ 从最新消息开始，忽略历史消息
     # Explicitly disable proxies for internal Java backend calls to avoid 502 errors
-    print(f">>> [WORKER] Starting stream worker. Redis: {settings.REDIS_URL}, Stream: {settings.AI_TASK_STREAM}")
-    print(f">>> [WORKER] Will only process NEW messages (last_id={last_id})")
+    logger.info(f"Starting stream worker. Redis: {settings.REDIS_URL}, Stream: {settings.AI_TASK_STREAM}")
+    logger.info(f"Will only process NEW messages (last_id={last_id})")
     async with httpx.AsyncClient(timeout=settings.EXTERNAL_TIMEOUT_SECONDS, trust_env=False) as client:
-        print(">>> [WORKER] HTTP Client initialized. Entering main loop...")
+        logger.info("HTTP Client initialized. Entering main loop...")
         while True:
             try:
                 messages = await redis_client.xread({settings.AI_TASK_STREAM: last_id}, block=5000, count=10)
                 if not messages:
-                    # Heartbeat
-                    print(f">>> [HEARTBEAT] Watching {settings.AI_TASK_STREAM} from ID {last_id}...")
+                    logger.debug(f"Watching {settings.AI_TASK_STREAM} from ID {last_id}...")
                     continue
                 for _, entries in messages:
                     for message_id, payload in entries:
                         last_id = message_id
                         
-                        # Basic validation to prevent KeyError
                         if "taskId" not in payload or "userInput" not in payload:
-                            print(f">>> [SKIP] Invalid message format (id: {message_id})")
+                            logger.warning(f"Invalid message format (id: {message_id})")
                             continue
                             
-                        print(f">>> [WORKER] Processing task: {payload['taskId']} (User: {payload.get('userId')})")
+                        logger.info(f"Processing task: {payload['taskId']} (User: {payload.get('userId')})")
                         
                         try:
                             request = WorkerTaskRequest(
@@ -55,22 +53,67 @@ async def process_stream_tasks() -> None:
                             )
                             await _handle_task(travel_service, client, request)
                         except Exception as inner_exc:
-                            print(f"!!! [ERROR] Failed to handle task {payload.get('taskId')}: {inner_exc}")
+                            logger.error(f"Failed to handle task {payload.get('taskId')}: {inner_exc}")
                             
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                print(f"!!! [ITERATION FAILED] {exc}")
+                logger.error(f"Iteration failed: {exc}")
                 await asyncio.sleep(1)
 
 
+def _build_success_payload(plan, request: WorkerTaskRequest) -> dict:
+    """Build success payload from plan and request."""
+    mcp_calls = [tc.model_dump() for tc in plan.mcp_tool_calls]
+    return {
+        "success": True,
+        "traceId": plan.trace_id,
+        "promptVersion": plan.prompt_version,
+        "title": plan.title,
+        "summary": plan.summary,
+        "riskTips": plan.risk_tips,
+        "renderedMarkdown": plan.rendered_markdown,
+        "structuredContent": plan.model_dump(),
+        "days": [day.model_dump() for day in plan.days],
+        "failureReason": None,
+        "modelProvider": plan.model_provider,
+        "modelName": plan.model_name,
+        "mcpTrace": json.dumps(mcp_calls, ensure_ascii=False),
+        "toolCalls": json.dumps(mcp_calls, ensure_ascii=False),
+        "fallbackUsed": plan.model_provider.startswith("ollama"),
+        "planningScore": plan.planning_score.level,
+        "startLocation": plan.enriched_pois[0].address if plan.enriched_pois else None,
+        "endLocation": plan.enriched_pois[-1].address if plan.enriched_pois else None,
+        "travelModePreference": "mixed",
+        "weatherSummary": json.dumps([w.model_dump() for w in plan.weather_forecast], ensure_ascii=False),
+        "financeSummary": json.dumps(plan.finance_summary, ensure_ascii=False) if plan.finance_summary else None,
+    }
+
+
+def _build_failure_payload(exc: Exception, request: WorkerTaskRequest) -> dict:
+    """Build failure payload from exception and request."""
+    return {
+        "success": False,
+        "traceId": request.trace_id,
+        "promptVersion": request.prompt_version,
+        "title": None, "summary": None, "riskTips": None,
+        "renderedMarkdown": None, "structuredContent": {},
+        "days": [], "failureReason": str(exc),
+        "modelProvider": None, "modelName": None,
+        "mcpTrace": None, "toolCalls": None,
+        "fallbackUsed": False, "planningScore": None,
+        "startLocation": None, "endLocation": None,
+        "travelModePreference": None, "weatherSummary": None,
+        "financeSummary": None,
+    }
+
+
 async def _handle_task(travel_service: TravelService, client: httpx.AsyncClient, request: WorkerTaskRequest) -> None:
-    # Initialize progress tracking for this task
     try:
         await progress_tracker.initialize_task(request.task_id)
-        print(f">>> [PROGRESS] Initialized tracking for task {request.task_id}")
+        logger.info(f"Initialized progress tracking for task {request.task_id}")
     except Exception as e:
-        print(f"!!! [PROGRESS ERROR] Failed to initialize: {e}")
+        logger.error(f"Failed to initialize progress tracking: {e}")
     
     try:
         plan = await travel_service.generate_plan(
@@ -81,46 +124,10 @@ async def _handle_task(travel_service: TravelService, client: httpx.AsyncClient,
             trace_id=request.trace_id,
             task_id=request.task_id,
         )
-        payload = {
-            "success": True,
-            "traceId": plan.trace_id,
-            "promptVersion": plan.prompt_version,
-            "title": plan.title,
-            "summary": plan.summary,
-            "riskTips": plan.risk_tips,
-            "renderedMarkdown": plan.rendered_markdown,
-            "structuredContent": plan.model_dump(),
-            "days": [day.model_dump() for day in plan.days],
-            "failureReason": None,
-            # ── 2.0 enhanced fields ─────────────────────────
-            "modelProvider": plan.model_provider,
-            "modelName": plan.model_provider,
-            "mcpTrace": json.dumps([tc.model_dump() for tc in plan.mcp_tool_calls], ensure_ascii=False),
-            "toolCalls": json.dumps([tc.model_dump() for tc in plan.mcp_tool_calls], ensure_ascii=False),
-            "fallbackUsed": plan.model_provider.startswith("ollama"),
-            "planningScore": plan.planning_score.level,
-            "startLocation": plan.enriched_pois[0].address if plan.enriched_pois else None,
-            "endLocation": plan.enriched_pois[-1].address if plan.enriched_pois else None,
-            "travelModePreference": "mixed",
-            "weatherSummary": json.dumps([w.model_dump() for w in plan.weather_forecast], ensure_ascii=False),
-            "financeSummary": json.dumps(plan.finance_summary, ensure_ascii=False) if plan.finance_summary else None,
-        }
+        payload = _build_success_payload(plan, request)
     except Exception as exc:
-        print(f"!!! [LLM ERROR] generate_plan failed for task {request.task_id}: {exc}")
-        payload = {
-            "success": False,
-            "traceId": request.trace_id,
-            "promptVersion": request.prompt_version,
-            "title": None, "summary": None, "riskTips": None,
-            "renderedMarkdown": None, "structuredContent": {},
-            "days": [], "failureReason": str(exc),
-            "modelProvider": None, "modelName": None,
-            "mcpTrace": None, "toolCalls": None,
-            "fallbackUsed": False, "planningScore": None,
-            "startLocation": None, "endLocation": None,
-            "travelModePreference": None, "weatherSummary": None,
-            "financeSummary": None,
-        }
+        logger.error(f"generate_plan failed for task {request.task_id}: {exc}")
+        payload = _build_failure_payload(exc, request)
 
     callback_url = f"{settings.JAVA_CALLBACK_BASE_URL}/{request.task_id}/complete"
     # Retry logic for callback in case Java is still restarting
@@ -132,11 +139,11 @@ async def _handle_task(travel_service: TravelService, client: httpx.AsyncClient,
                 headers={"X-Internal-Token": settings.INTERNAL_API_TOKEN},
             )
             response.raise_for_status()
-            print(f">>> [DONE] Task {request.task_id} callback successful")
+            logger.info(f"Task {request.task_id} callback successful")
             return
         except Exception as callback_exc:
             if attempt < 4:
-                print(f">>> [RETRY] Callback for {request.task_id} failed (attempt {attempt + 1}/5): {callback_exc}")
+                logger.warning(f"Callback for {request.task_id} failed (attempt {attempt + 1}/5): {callback_exc}")
                 await asyncio.sleep(5)
             else:
-                print(f"!!! [FATAL] Callback failed for task {request.task_id} after 5 attempts")
+                logger.error(f"Callback failed for task {request.task_id} after 5 attempts")

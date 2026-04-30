@@ -20,8 +20,9 @@ from src.planner.stages.poi_selector import select_pois
 from src.planner.stages.route_optimizer import optimize_routes
 from src.planner.stages.weather_adjuster import adjust_for_weather
 from src.planner.stages.scoring import compute_planning_score
+from src.core.utils import calculate_budget
 from src.planner.stages.finance_advisor import analyze_finance
-from src.planner.stages.transport_planner import plan_intercity_transport  # 新增
+from src.planner.stages.transport_planner import plan_intercity_transport
 from src.planner.stages.renderer import render_itinerary
 from src.services.progress_tracker import progress_tracker
 
@@ -201,7 +202,7 @@ async def finance_node(state: TravelState) -> TravelState:
     return {"finance_summary": finance}
 
 
-# ── Node 8: Transport Planner (新增：大交通规划) ─────────────────
+# ── Node 8: Transport Planner ────────────────────────────────────
 
 async def transport_node(state: TravelState) -> TravelState:
     task_id = state.get("task_id", "")
@@ -212,9 +213,7 @@ async def transport_node(state: TravelState) -> TravelState:
 
     transport_plan = await plan_intercity_transport(state["intent"])
     
-    # 如果有大交通费用,更新资金规划
     if transport_plan and transport_plan.total_cost > 0:
-        from src.planner.stages.finance_advisor import calculate_budget
         updated_finance = calculate_budget(state["intent"], transport_plan.total_cost)
         finance_summary = state.get("finance_summary", {})
         finance_summary.update(updated_finance)
