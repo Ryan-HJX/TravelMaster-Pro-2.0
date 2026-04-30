@@ -15,6 +15,7 @@ import {
   type PostResponse, type AuthorSummary, type NotificationResponse, type ItineraryResponse
 } from '../services/api';
 import ChinaMap from '../components/ChinaMap';
+import CityMap from '../components/CityMap';
 
 const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, onLogout }) => {
   const [taskInput, setTaskInput] = useState('北京3天文化游，预算中等，想多逛博物馆和古建');
@@ -783,6 +784,13 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
                   </div>
                 ))}
               </div>
+            </section>
+
+            <section className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+              <CityMap 
+                visitedCities={visitedProvinces} 
+                onCityToggle={handleProvinceToggle} 
+              />
             </section>
           </aside>
         </div>
