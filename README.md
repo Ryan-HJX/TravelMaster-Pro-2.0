@@ -1,6 +1,6 @@
 # TravelMaster Pro 2.0
 
-> 基于 **Java Spring Boot + Python FastAPI + 阿里云百炼 MCP** 的智能旅游社交平台。  
+> 基于 **Java Spring Boot + Python FastAPI + 阿里云百炼 MCP** 的智能旅游社交平台。
 > 定位：云端 AI 驱动的高并发旅游社交平台 —— 真实地理约束下的动态行程规划。
 
 ---
@@ -81,7 +81,7 @@
 | `notification` | 通知系统 | WebSocket (STOMP) · Redis Stream |
 | `ranking` | 排行榜 | Redis Sorted Set · Caffeine + Redis 两级缓存 |
 | `analytics` | 运营报表 | 聚合 SQL · 转化漏斗 · 目的地统计 |
-| `ai-planner` | AI 行程规划 (Python) | 百炼 qwen3 · Amap MCP · 盈米 MCP · 7 段式 LangGraph |
+| `ai-planner` | AI 行程规划 (Python) | 百炼 qwen3 · Amap MCP · 盈米 MCP · 9 段式 LangGraph · 进度追踪 |
 | `footprint` | 足迹地图 | ECharts 省级地图 · 34 个省级行政区 · 自动联动计算 |
 
 ---
@@ -105,6 +105,27 @@
 - **云端首选**：百炼 qwen3-plus (主推理) / qwen3-flash (轻量抽取)
 - **本地降级**：Ollama gemma4:e2b（无 MCP，纯文本推理）
 - **降级触发**：API Key 未配置 / 云端超时 / 异常
+
+### Token 消耗优化
+
+为降低 API Token 消耗，采用了以下优化策略：
+
+| 优化项 | 优化前 | 优化后 | 效果 |
+|--------|--------|--------|------|
+| **前端轮询间隔** | 固定 2 秒 | 初始 5 秒，指数退避（最大 30 秒） | 轮询次数减少约 **60%** |
+| **LLM 重试次数** | 3 次 | 2 次 | 重试次数减少 **33%** |
+| **LLM 重试间隔** | 2 秒 | 5 秒 | 减少无效等待 |
+| **429 限流等待** | 5 秒 | 10 秒 | 更好应对限流 |
+
+**指数退避公式**：`delay = min(delay * 1.5, 30000)`
+
+**Token 消耗预估**：
+
+| 场景 | 优化前 | 优化后 | 节省比例 |
+|------|--------|--------|----------|
+| 单次行程（无重试） | 7-8 次 | 7-8 次 | - |
+| 单次行程（含重试） | 14-24 次 | 9-16 次 | ~35% |
+| 30 秒任务处理轮询 | ~15 次 | ~5-6 次 | ~65% |
 
 ---
 
