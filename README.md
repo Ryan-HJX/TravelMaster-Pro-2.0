@@ -86,7 +86,7 @@
 
 ---
 
-## AI 规划 — 7 段式工作流
+## AI 规划 — 9 段式工作流
 
 | 阶段 | 模型 | MCP 工具 | 输出 |
 |------|------|----------|------|
@@ -96,7 +96,9 @@
 | 4. 路线优化 | qwen3-plus | Amap 路径规划 | 多交通方式比选 |
 | 5. 天气联动 | qwen3-plus | Amap 天气 | 天气预报 + 室内/外切换 |
 | 6. 可执行性评分 | 纯计算 | — | 轻松/适中/紧凑/不可执行 |
-| 7. 行程渲染 | qwen3-plus | — | 结构化 JSON + Markdown |
+| 7. 资金建议 | qwen3-plus | 盈米金融 MCP | 预算分析 + 流动性提醒 |
+| 8. 大交通规划 | qwen3-plus | — | 往返交通方案（飞机/火车） |
+| 9. 行程渲染 | qwen3-plus | — | 结构化 JSON + Markdown |
 
 ### 模型降级策略
 
@@ -257,13 +259,16 @@ TravelMaster/
 │       ├── application.properties
 │       └── db/migration/        # Flyway DDL (V1 + V2)
 ├── src/                         # Python AI 编排服务
-│   ├── agents/                  # LangGraph 7-Node 工作流
+│   ├── agents/                  # LangGraph 9-Node 工作流
 │   ├── llm/                     # 百炼客户端 + 模型路由
 │   ├── mcp/                     # MCP 工具注册表
-│   ├── planner/stages/          # 7 段式规划 (意图→地理→POI→路线→天气→评分→渲染)
+│   ├── planner/stages/          # 9 段式规划 (意图→地理→POI→路线→天气→评分→资金→交通→渲染)
 │   ├── evals/                   # 行程质量评测
 │   ├── schemas/                 # Pydantic 结构化输出
-│   ├── services/                # TravelService
+│   ├── services/                # TravelService + ProgressTracker
+│   ├── core/                    # 通用工具 + 常量定义
+│   │   ├── utils.py             # JSON 解析、进度跟踪装饰器、预算计算
+│   │   └── constants.py         # WorkflowStep 枚举、步骤配置
 │   ├── worker/                  # Redis Stream Worker
 │   └── tests/                   # Python 测试
 ├── travel-master-frontend/      # React + TypeScript 前端
