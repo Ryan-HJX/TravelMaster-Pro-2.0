@@ -68,7 +68,7 @@ def calculate_budget(intent: Any, transport_cost: int = 0) -> dict[str, Any]:
         intent: TravelIntent object or dict with budget and days attributes
         transport_cost: 大交通费用(往返总费用)
     """
-    budget_map = {
+    budget_map: dict[str, dict[str, int | str]] = {
         "low": {"daily": 300, "description": "经济型"},
         "medium": {"daily": 800, "description": "舒适型"},
         "high": {"daily": 2000, "description": "豪华型"}
@@ -76,11 +76,12 @@ def calculate_budget(intent: Any, transport_cost: int = 0) -> dict[str, Any]:
 
     # Support both dict and object access
     budget_key = intent.get("budget", "medium") if isinstance(intent, dict) else getattr(intent, "budget", "medium")
-    days = intent.get("days", 3) if isinstance(intent, dict) else getattr(intent, "days", 3)
+    days_raw = intent.get("days", 3) if isinstance(intent, dict) else getattr(intent, "days", 3)
+    days_int = int(days_raw) if days_raw is not None else 3
     
     budget_info = budget_map.get(budget_key, budget_map["medium"])
-    daily_base = budget_info["daily"]
-    local_total = daily_base * days  # 当地消费总额
+    daily_base: int = int(budget_info["daily"])
+    local_total: int = daily_base * days_int  # 当地消费总额
     
     grand_total = local_total + transport_cost
 

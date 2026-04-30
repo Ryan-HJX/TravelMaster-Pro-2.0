@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     EXTERNAL_TIMEOUT_SECONDS: float = 60.0
     MOCK_EXTERNAL: bool = False
 
+    # ── Security / CORS ──────────────────────────────────────────
+    ALLOWED_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+
+    # ── Limits ────────────────────────────────────────────────────
+    MAX_POI_PER_REQUEST: int = 20
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

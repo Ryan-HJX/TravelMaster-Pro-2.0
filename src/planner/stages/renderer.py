@@ -64,10 +64,10 @@ async def render_itinerary(
     weather_forecast: list[WeatherDay],
     planning_score: PlanningScore,
     finance_summary: dict[str, Any] | None,
-    transport_plan=None,  # 新增：大交通方案
+    transport_plan=None,
     trace_id: str = "",
     prompt_version: str = "v2-mcp",
-    mcp_tool_calls: list[MCPToolCall] = None,
+    mcp_tool_calls: list[MCPToolCall] | None = None,
     model_provider: str = "",
 ) -> StructuredItinerary:
     """Render the final structured itinerary using the main model."""
@@ -191,6 +191,6 @@ async def render_itinerary(
         days=days, enriched_pois=enriched_pois, fallback_options=fallback_options,
         route_options=route_options, weather_forecast=weather_forecast,
         planning_score=planning_score, model_provider=model_provider,
-        mcp_tool_calls=mcp_tool_calls, finance_summary=finance_summary,
-        transport_plan=transport_plan  # 新增：添加大交通方案
+        mcp_tool_calls=mcp_tool_calls or [], finance_summary=finance_summary,
+        transport_plan=transport_plan
     )

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import json
 import logging
 
+from src.core.utils import parse_json_safe
 from src.llm.model_router import router
 from src.schemas.plan import TravelIntent
 
@@ -41,19 +41,11 @@ async def parse_intent(user_input: str) -> TravelIntent:
     text = result["output_text"].strip()
     logger.info("Raw AI response for intent: %s", text[:200])
 
-    # Try to extract JSON from the response
-    try:
-        # Handle potential markdown code blocks
-        if "```" in text:
-            text = text.split("```json")[-1].split("```")[0].strip()
-            if not text:
-                text = result["output_text"].split("```")[-2].strip()
-
-        data = json.loads(text)
+    data = parse_json_safe(text, {})
+    if data:
         intent = TravelIntent(**data)
-    except (json.JSONDecodeError, Exception) as exc:
-        logger.warning("intent parse failed, using defaults: %s", exc)
-        # Fallback: extract city from input
+    else:
+        logger.warning("intent parse failed, using defaults")
         intent = TravelIntent(city=user_input.split("天")[0] if "天" in user_input else user_input[:10], days=3)
 
     logger.info("parsed intent: city=%s days=%d style=%s", intent.city, intent.days, intent.travel_style)

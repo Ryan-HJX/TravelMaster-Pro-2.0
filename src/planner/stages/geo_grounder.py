@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
+from src.core.utils import parse_json_safe
 from src.llm.model_router import router
 from src.mcp.tool_registry import get_planning_tools
 from src.schemas.plan import TravelIntent
@@ -47,11 +47,8 @@ async def ground_geography(intent: TravelIntent) -> dict[str, Any]:
     )
 
     text = result["output_text"].strip()
-    try:
-        if "```" in text:
-            text = text.split("```json")[-1].split("```")[0].strip()
-        geo_data = json.loads(text)
-    except (json.JSONDecodeError, Exception):
+    geo_data = parse_json_safe(text, {})
+    if not geo_data:
         logger.warning("geo grounding parse failed, using defaults")
         geo_data = {
             "city_name": intent.city,

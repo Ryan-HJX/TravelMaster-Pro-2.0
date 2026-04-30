@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
+from src.core.utils import parse_json_safe
 from src.llm.model_router import router
 from src.mcp.tool_registry import get_planning_tools
 from src.schemas.plan import EnrichedPOI, FallbackPOI, TravelIntent, WeatherDay
@@ -68,11 +68,8 @@ async def adjust_for_weather(
     text = result["output_text"].strip()
     weather_days: list[WeatherDay] = []
 
-    try:
-        if "```" in text:
-            text = text.split("```json")[-1].split("```")[0].strip()
-        data = json.loads(text)
-
+    data = parse_json_safe(text, {})
+    if data:
         for w in data.get("weather_forecast", []):
             weather_days.append(WeatherDay(
                 day_number=int(w.get("day_number", 1)),
@@ -83,9 +80,8 @@ async def adjust_for_weather(
                 advice=w.get("advice", ""),
                 is_outdoor_friendly=w.get("is_outdoor_friendly", True),
             ))
-    except (json.JSONDecodeError, Exception) as exc:
-        logger.warning("weather adjustment parse failed: %s", exc)
-        # Generate placeholder weather
+    else:
+        logger.warning("weather adjustment parse failed, using placeholders")
         for d in range(1, intent.days + 1):
             weather_days.append(WeatherDay(
                 day_number=d,

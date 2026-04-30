@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
+from src.core.utils import parse_json_safe
 from src.llm.model_router import router
 from src.mcp.tool_registry import get_planning_tools
 from src.schemas.plan import EnrichedPOI, FallbackPOI, TravelIntent
@@ -58,11 +58,8 @@ async def select_pois(
     enriched_pois: list[EnrichedPOI] = []
     fallback_pois: list[FallbackPOI] = []
 
-    try:
-        if "```" in text:
-            text = text.split("```json")[-1].split("```")[0].strip()
-        data = json.loads(text)
-
+    data = parse_json_safe(text, {})
+    if data:
         for poi_type, poi_list in [
             ("attraction", data.get("must_see", [])),
             ("restaurant", data.get("restaurants", [])),
@@ -90,8 +87,8 @@ async def select_pois(
                 category=b.get("category", ""),
                 reason=b.get("reason", ""),
             ))
-    except (json.JSONDecodeError, Exception) as exc:
-        logger.warning("poi selection parse failed: %s", exc)
+    else:
+        logger.warning("poi selection parse failed")
 
     logger.info("selected %d POIs + %d fallbacks", len(enriched_pois), len(fallback_pois))
     return enriched_pois, fallback_pois, {

@@ -6,13 +6,21 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta
+from typing import TypedDict
 
 from src.schemas.plan import TravelIntent, TransportPlan, InterCityTransport
 from src.config.settings import settings
 
 
+class FlightData(TypedDict):
+    carrier: str
+    flight_number: str
+    duration: float
+    price: int
+
+
 # 模拟航班/火车数据（实际应接入携程/12306 API）
-FLIGHT_DATABASE = {
+FLIGHT_DATABASE: dict[str, list[FlightData]] = {
     "北京-上海": [
         {"carrier": "中国国航", "flight_number": "CA1831", "duration": 2.5, "price": 800},
         {"carrier": "东方航空", "flight_number": "MU5101", "duration": 2.3, "price": 750},
@@ -23,7 +31,7 @@ FLIGHT_DATABASE = {
     ],
 }
 
-TRAIN_DATABASE = {
+TRAIN_DATABASE: dict[str, list[FlightData]] = {
     "北京-上海": [
         {"carrier": "铁路局", "flight_number": "G2", "duration": 4.5, "price": 650},
         {"carrier": "铁路局", "flight_number": "G4", "duration": 5.0, "price": 600},
@@ -130,20 +138,21 @@ async def _search_flight(
         return None
 
     # 选择最便宜的航班
-    best_flight = min(flights, key=lambda x: x["price"])
+    best_flight = min(flights, key=lambda x: float(x["price"]))
 
     # 生成出发/到达时间
+    flight_duration = float(best_flight["duration"])
     if is_outbound:
         departure_time = f"{travel_date} 08:00"
         arrival_dt = datetime.strptime(departure_time, "%Y-%m-%d %H:%M") + timedelta(
-            hours=best_flight["duration"]
+            hours=flight_duration
         )
         arrival_time = arrival_dt.strftime("%Y-%m-%d %H:%M")
     else:
         # 返程通常在下午/晚上
         departure_time = f"{travel_date} 18:00"
         arrival_dt = datetime.strptime(departure_time, "%Y-%m-%d %H:%M") + timedelta(
-            hours=best_flight["duration"]
+            hours=flight_duration
         )
         arrival_time = arrival_dt.strftime("%Y-%m-%d %H:%M")
 
@@ -153,10 +162,10 @@ async def _search_flight(
         arrival_city=route_key.split("-")[1],
         departure_time=departure_time,
         arrival_time=arrival_time,
-        duration_hours=best_flight["duration"],
-        price_estimate=best_flight["price"],
-        carrier=best_flight["carrier"],
-        flight_number=best_flight["flight_number"],
+        duration_hours=flight_duration,
+        price_estimate=int(best_flight["price"]),
+        carrier=str(best_flight["carrier"]),
+        flight_number=str(best_flight["flight_number"]),
         booking_tips="建议提前7天预订，可获得更低价格",
     )
 
@@ -170,18 +179,19 @@ async def _search_train(
         return None
 
     # 选择最快的高铁
-    best_train = min(trains, key=lambda x: x["duration"])
+    best_train = min(trains, key=lambda x: float(x["duration"]))
 
+    train_duration = float(best_train["duration"])
     if is_outbound:
         departure_time = f"{travel_date} 09:00"
         arrival_dt = datetime.strptime(departure_time, "%Y-%m-%d %H:%M") + timedelta(
-            hours=best_train["duration"]
+            hours=train_duration
         )
         arrival_time = arrival_dt.strftime("%Y-%m-%d %H:%M")
     else:
         departure_time = f"{travel_date} 16:00"
         arrival_dt = datetime.strptime(departure_time, "%Y-%m-%d %H:%M") + timedelta(
-            hours=best_train["duration"]
+            hours=train_duration
         )
         arrival_time = arrival_dt.strftime("%Y-%m-%d %H:%M")
 
@@ -191,10 +201,10 @@ async def _search_train(
         arrival_city=route_key.split("-")[1],
         departure_time=departure_time,
         arrival_time=arrival_time,
-        duration_hours=best_train["duration"],
-        price_estimate=best_train["price"],
-        carrier=best_train["carrier"],
-        flight_number=best_train["flight_number"],
+        duration_hours=train_duration,
+        price_estimate=int(best_train["price"]),
+        carrier=str(best_train["carrier"]),
+        flight_number=str(best_train["flight_number"]),
         booking_tips="高铁票紧张，建议提前15天在12306预订",
     )
 

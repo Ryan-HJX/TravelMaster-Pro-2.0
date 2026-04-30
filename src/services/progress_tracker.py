@@ -57,7 +57,13 @@ class ProgressTracker:
 
     async def _get_redis(self) -> redis.Redis:
         if self._redis is None:
-            self._redis = redis.from_url(self.redis_url, decode_responses=True)
+            self._redis = redis.from_url(
+                self.redis_url,
+                decode_responses=True,
+                max_connections=10,
+                socket_timeout=5,
+                socket_connect_timeout=5,
+            )
         return self._redis
 
     async def initialize_task(self, task_id: str):
@@ -84,8 +90,8 @@ class ProgressTracker:
                 "updatedAt": now_str,
             }
 
-            await r.hset(f"task_progress:{task_id}", mapping=progress_data)
-            await r.expire(f"task_progress:{task_id}", 3600)  # Expire after 1 hour
+            await r.hset(f"task_progress:{task_id}", mapping=progress_data)  # type: ignore
+            await r.expire(f"task_progress:{task_id}", 3600)  # type: ignore
             logger.info(f"Initialized progress tracking for task {task_id}")
         except Exception as e:
             logger.error(f"Failed to initialize task progress: {e}")
@@ -99,7 +105,7 @@ class ProgressTracker:
             progress_key = f"task_progress:{task_id}"
 
             # Get current progress data
-            progress_data = await r.hgetall(progress_key)
+            progress_data = await r.hgetall(progress_key)  # type: ignore
             if not progress_data:
                 logger.warning(f"No progress data found for task {task_id}")
                 return
@@ -143,8 +149,8 @@ class ProgressTracker:
             progress_data["overallProgress"] = str(overall_progress)
             progress_data["updatedAt"] = now
 
-            await r.hset(progress_key, mapping=progress_data)
-            await r.expire(progress_key, 3600)
+            await r.hset(progress_key, mapping=progress_data)  # type: ignore
+            await r.expire(progress_key, 3600)  # type: ignore
 
             logger.info(
                 f"[PROGRESS UPDATED] Task {task_id}: {overall_progress}% complete, "
@@ -157,7 +163,7 @@ class ProgressTracker:
         """Get current progress for a task."""
         try:
             r = await self._get_redis()
-            progress_data = await r.hgetall(f"task_progress:{task_id}")
+            progress_data = await r.hgetall(f"task_progress:{task_id}")  # type: ignore
 
             if not progress_data:
                 return None
@@ -181,7 +187,7 @@ class ProgressTracker:
         """Mark all remaining steps as completed."""
         try:
             r = await self._get_redis()
-            progress_data = await r.hgetall(f"task_progress:{task_id}")
+            progress_data = await r.hgetall(f"task_progress:{task_id}")  # type: ignore
 
             if not progress_data:
                 return
@@ -200,7 +206,7 @@ class ProgressTracker:
             progress_data["currentStep"] = "completed"
             progress_data["updatedAt"] = now
 
-            await r.hset(f"task_progress:{task_id}", mapping=progress_data)
+            await r.hset(f"task_progress:{task_id}", mapping=progress_data)  # type: ignore
             logger.info(f"Task {task_id} marked as completed")
         except Exception as e:
             logger.error(f"Failed to complete task: {e}")

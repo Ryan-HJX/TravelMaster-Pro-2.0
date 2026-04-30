@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
+from src.config.settings import settings
+from src.core.utils import parse_json_safe
 from src.llm.model_router import router
 from src.mcp.tool_registry import get_planning_tools
 from src.schemas.plan import EnrichedPOI, RouteOption, RouteSegment, TravelIntent
@@ -47,7 +48,7 @@ async def optimize_routes(
     """Use Amap MCP for multi-modal route planning between POIs."""
     poi_summary = "\n".join(
         f"- {p.name} ({p.longitude},{p.latitude}) [{p.poi_type}]"
-        for p in enriched_pois[:20]  # Limit to avoid token overflow
+        for p in enriched_pois[:settings.MAX_POI_PER_REQUEST]
     )
 
     prompt = (
@@ -66,11 +67,8 @@ async def optimize_routes(
     text = result["output_text"].strip()
     route_options: list[RouteOption] = []
 
-    try:
-        if "```" in text:
-            text = text.split("```json")[-1].split("```")[0].strip()
-        data = json.loads(text)
-
+    data = parse_json_safe(text, {})
+    if data:
         for ro in data.get("route_options", []):
             options = [
                 RouteSegment(
@@ -88,8 +86,8 @@ async def optimize_routes(
                 recommended_mode=ro.get("recommended_mode", ""),
                 recommended_duration_minutes=int(ro.get("recommended_duration_minutes", 0)),
             ))
-    except (json.JSONDecodeError, Exception) as exc:
-        logger.warning("route optimization parse failed: %s", exc)
+    else:
+        logger.warning("route optimization parse failed")
 
     logger.info("generated %d route options", len(route_options))
     return route_options, {

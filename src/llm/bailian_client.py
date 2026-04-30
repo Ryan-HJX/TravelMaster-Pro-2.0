@@ -36,14 +36,16 @@ class BailianClient:
         """Call DashScope with retries and massive timeout."""
         model = model or self.main_model
         
-        payload = {
+        messages: list[dict[str, str]] = []
+        if instructions:
+            messages.append({"role": "system", "content": instructions})
+        messages.append({"role": "user", "content": input})
+
+        payload: dict[str, Any] = {
             "model": model,
-            "input": {"messages": []},
+            "input": {"messages": messages},
             "parameters": {"result_format": "message", "temperature": temperature}
         }
-        if instructions:
-            payload["input"]["messages"].append({"role": "system", "content": instructions})
-        payload["input"]["messages"].append({"role": "user", "content": input})
 
         if tools:
             payload["tools"] = tools

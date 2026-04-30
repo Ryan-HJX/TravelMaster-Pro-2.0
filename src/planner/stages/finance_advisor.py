@@ -80,15 +80,16 @@ def calculate_budget(intent: TravelIntent, transport_cost: int = 0) -> dict[str,
         intent: 旅行意图
         transport_cost: 大交通费用(往返总费用)
     """
-    budget_map = {
+    budget_map: dict[str, dict[str, int | str]] = {
         "low": {"daily": 300, "description": "经济型"},
         "medium": {"daily": 800, "description": "舒适型"},
         "high": {"daily": 2000, "description": "豪华型"}
     }
 
     budget_info = budget_map.get(intent.budget, budget_map["medium"])
-    daily_base = budget_info["daily"]
-    local_total = daily_base * intent.days  # 当地消费总额
+    daily_base: int = int(budget_info["daily"])
+    days_int: int = int(intent.days)
+    local_total: int = daily_base * days_int  # 当地消费总额
     
     # 总预算 = 当地消费 + 大交通费用
     grand_total = local_total + transport_cost
@@ -304,9 +305,9 @@ async def analyze_finance(intent: TravelIntent, pois: list[Any], transport_cost:
         "yingmi_insights": yingmi_insights if mcp_used else None,
         "mcp_metadata": {
             "used": mcp_used,
-            "model": yingmi_result.get("model") if mcp_used else None,
-            "latency_ms": yingmi_result.get("latency_ms") if mcp_used else None,
-            "tool_calls_count": len(yingmi_result.get("tool_calls", [])) if mcp_used else 0
+            "model": yingmi_result.get("model") if mcp_used and yingmi_result else None,
+            "latency_ms": yingmi_result.get("latency_ms") if mcp_used and yingmi_result else None,
+            "tool_calls_count": len(yingmi_result.get("tool_calls", [])) if mcp_used and yingmi_result else 0
         },
         "risk_notice": (
             "⚠️ 免责声明：本功能仅提供信息展示与资金安排辅助，不构成任何投资建议。"

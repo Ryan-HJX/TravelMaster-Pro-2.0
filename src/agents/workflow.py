@@ -7,11 +7,13 @@ Pipeline: intent → geo_grounding → poi_pool → route_optimization
 from __future__ import annotations
 
 import logging
+from typing import Any
 from uuid import uuid4
 
 from langgraph.graph import END, StateGraph
 
 from src.agents.state import TravelState
+from src.core.utils import async_step, calculate_budget
 from src.schemas.plan import MCPToolCall, PlanningScore, SkillTrace
 
 from src.planner.stages.intent_parser import parse_intent
@@ -20,7 +22,6 @@ from src.planner.stages.poi_selector import select_pois
 from src.planner.stages.route_optimizer import optimize_routes
 from src.planner.stages.weather_adjuster import adjust_for_weather
 from src.planner.stages.scoring import compute_planning_score
-from src.core.utils import calculate_budget
 from src.planner.stages.finance_advisor import analyze_finance
 from src.planner.stages.transport_planner import plan_intercity_transport
 from src.planner.stages.renderer import render_itinerary
@@ -47,19 +48,11 @@ def _build_mcp_calls(stage: str, tool_calls: list[dict]) -> list[MCPToolCall]:
 
 # ── Node 1: Intent Parsing ──────────────────────────────────────
 
+@async_step("intent_parser")
 async def intent_node(state: TravelState) -> TravelState:
-    task_id = state.get("task_id", "")
-    print(">>> [AI 步骤] 1. 正在深度解析您的旅行意图...")
-
-    # Update progress
-    if task_id:
-        await progress_tracker.update_step_status(task_id, "intent_parser", "processing")
+    logger.info(">>> [AI 步骤] 1. 正在深度解析您的旅行意图...")
 
     intent = await parse_intent(state["user_input"])
-
-    # Mark as completed
-    if task_id:
-        await progress_tracker.update_step_status(task_id, "intent_parser", "completed")
 
     return {
         "intent": intent,
@@ -72,17 +65,11 @@ async def intent_node(state: TravelState) -> TravelState:
 
 # ── Node 2: Geo Grounding ───────────────────────────────────────
 
+@async_step("geo_grounding")
 async def geo_grounding_node(state: TravelState) -> TravelState:
-    task_id = state.get("task_id", "")
-    print(">>> [AI 步骤] 2. 正在通过高德地图进行地理位置校准...")
-
-    if task_id:
-        await progress_tracker.update_step_status(task_id, "geo_grounding", "processing")
+    logger.info(">>> [AI 步骤] 2. 正在通过高德地图进行地理位置校准...")
 
     result = await ground_geography(state["intent"])
-
-    if task_id:
-        await progress_tracker.update_step_status(task_id, "geo_grounding", "completed")
 
     traces = state.get("skill_traces", []) + [
         _build_trace("geo_grounding", result.get("model", ""), result.get("latency_ms", 0), state.get("prompt_version", "v2-mcp"))
@@ -98,17 +85,11 @@ async def geo_grounding_node(state: TravelState) -> TravelState:
 
 # ── Node 3: POI Pool ────────────────────────────────────────────
 
+@async_step("poi_selector")
 async def poi_pool_node(state: TravelState) -> TravelState:
-    task_id = state.get("task_id", "")
-    print(">>> [AI 步骤] 3. 正在筛选目的地附近的精品景点和餐厅...")
-
-    if task_id:
-        await progress_tracker.update_step_status(task_id, "poi_selector", "processing")
+    logger.info(">>> [AI 步骤] 3. 正在筛选目的地附近的精品景点和餐厅...")
 
     pois, fallbacks, meta = await select_pois(state["intent"], state.get("geo_grounding", {}))
-
-    if task_id:
-        await progress_tracker.update_step_status(task_id, "poi_selector", "completed")
 
     traces = state.get("skill_traces", []) + [
         _build_trace("poi_selector", meta.get("model", ""), meta.get("latency_ms", 0), state.get("prompt_version", "v2-mcp"))
@@ -124,17 +105,11 @@ async def poi_pool_node(state: TravelState) -> TravelState:
 
 # ── Node 4: Route Optimization ──────────────────────────────────
 
+@async_step("route_optimizer")
 async def route_optimizer_node(state: TravelState) -> TravelState:
-    task_id = state.get("task_id", "")
-    print(">>> [AI 步骤] 4. 正在为您规划最合理的交通路线...")
-
-    if task_id:
-        await progress_tracker.update_step_status(task_id, "route_optimizer", "processing")
+    logger.info(">>> [AI 步骤] 4. 正在为您规划最合理的交通路线...")
 
     routes, meta = await optimize_routes(state["intent"], state.get("enriched_pois", []))
-
-    if task_id:
-        await progress_tracker.update_step_status(task_id, "route_optimizer", "completed")
 
     traces = state.get("skill_traces", []) + [
         _build_trace("route_optimizer", meta.get("model", ""), meta.get("latency_ms", 0), state.get("prompt_version", "v2-mcp"))
@@ -145,19 +120,13 @@ async def route_optimizer_node(state: TravelState) -> TravelState:
 
 # ── Node 5: Weather Adjustment ──────────────────────────────────
 
+@async_step("weather_adjuster")
 async def weather_adjuster_node(state: TravelState) -> TravelState:
-    task_id = state.get("task_id", "")
-    print(">>> [AI 步骤] 5. 正在结合目的地天气情况调整行程...")
-
-    if task_id:
-        await progress_tracker.update_step_status(task_id, "weather_adjuster", "processing")
+    logger.info(">>> [AI 步骤] 5. 正在结合目的地天气情况调整行程...")
 
     weather, meta = await adjust_for_weather(
         state["intent"], state.get("enriched_pois", []), state.get("fallback_options", []),
     )
-
-    if task_id:
-        await progress_tracker.update_step_status(task_id, "weather_adjuster", "completed")
 
     traces = state.get("skill_traces", []) + [
         _build_trace("weather_adjuster", meta.get("model", ""), meta.get("latency_ms", 0), state.get("prompt_version", "v2-mcp"))
@@ -168,72 +137,52 @@ async def weather_adjuster_node(state: TravelState) -> TravelState:
 
 # ── Node 6: Scoring ─────────────────────────────────────────────
 
+@async_step("scoring")
 async def scoring_node(state: TravelState) -> TravelState:
-    task_id = state.get("task_id", "")
-    print(">>> [AI 步骤] 6. 正在对行程质量进行多维度评估打分...")
-
-    if task_id:
-        await progress_tracker.update_step_status(task_id, "scoring", "processing")
+    logger.info(">>> [AI 步骤] 6. 正在对行程质量进行多维度评估打分...")
 
     score = compute_planning_score(
         state["intent"], state.get("enriched_pois", []), state.get("route_options", []),
     )
-
-    if task_id:
-        await progress_tracker.update_step_status(task_id, "scoring", "completed")
 
     return {"planning_score": score}
 
 
 # ── Node 7: Finance Advisor ─────────────────────────────────────
 
+@async_step("finance_advisor")
 async def finance_node(state: TravelState) -> TravelState:
-    task_id = state.get("task_id", "")
-    print(">>> [AI 步骤] 7. 正在结合盈米金融能力为您生成资金建议...")
-
-    if task_id:
-        await progress_tracker.update_step_status(task_id, "finance_advisor", "processing")
+    logger.info(">>> [AI 步骤] 7. 正在结合盈米金融能力为您生成资金建议...")
 
     finance = await analyze_finance(state["intent"], state.get("enriched_pois", []))
-
-    if task_id:
-        await progress_tracker.update_step_status(task_id, "finance_advisor", "completed")
 
     return {"finance_summary": finance}
 
 
 # ── Node 8: Transport Planner ────────────────────────────────────
 
+@async_step("transport_planner")
 async def transport_node(state: TravelState) -> TravelState:
-    task_id = state.get("task_id", "")
-    print(">>> [AI 步骤] 8. 正在为您规划往返大交通方案...")
-
-    if task_id:
-        await progress_tracker.update_step_status(task_id, "transport_planner", "processing")
+    logger.info(">>> [AI 步骤] 8. 正在为您规划往返大交通方案...")
 
     transport_plan = await plan_intercity_transport(state["intent"])
-    
+
     if transport_plan and transport_plan.total_cost > 0:
         updated_finance = calculate_budget(state["intent"], transport_plan.total_cost)
-        finance_summary = state.get("finance_summary", {})
-        finance_summary.update(updated_finance)
+        current_finance = state.get("finance_summary", {}) or {}
+        current_finance.update(updated_finance)
+        finance_summary: dict[str, Any] | None = current_finance
     else:
         finance_summary = state.get("finance_summary")
-
-    if task_id:
-        await progress_tracker.update_step_status(task_id, "transport_planner", "completed")
 
     return {"transport_plan": transport_plan, "finance_summary": finance_summary}
 
 
 # ── Node 9: Render ──────────────────────────────────────────────
 
+@async_step("renderer")
 async def render_node(state: TravelState) -> TravelState:
-    task_id = state.get("task_id", "")
-    print(">>> [AI 步骤] 9. 正在为您绘制精美的旅行地图与文档...")
-
-    if task_id:
-        await progress_tracker.update_step_status(task_id, "renderer", "processing")
+    logger.info(">>> [AI 步骤] 9. 正在为您绘制精美的旅行地图与文档...")
 
     plan = await render_itinerary(
         intent=state["intent"],
@@ -243,15 +192,15 @@ async def render_node(state: TravelState) -> TravelState:
         weather_forecast=state.get("weather_forecast", []),
         planning_score=state.get("planning_score", PlanningScore()),
         finance_summary=state.get("finance_summary"),
-        transport_plan=state.get("transport_plan"),  # 新增：传入大交通方案
+        transport_plan=state.get("transport_plan"),
         trace_id=state.get("trace_id", ""),
         prompt_version=state.get("prompt_version", "v2-mcp"),
         mcp_tool_calls=state.get("mcp_tool_calls", []),
         model_provider=state.get("model_provider", ""),
     )
 
+    task_id = str(state.get("task_id", ""))
     if task_id:
-        await progress_tracker.update_step_status(task_id, "renderer", "completed")
         await progress_tracker.complete_task(task_id)
 
     return {"plan": plan}
@@ -268,7 +217,7 @@ def create_travel_graph():
     workflow.add_node("weather_adjuster", weather_adjuster_node)
     workflow.add_node("scoring", scoring_node)
     workflow.add_node("finance_advisor", finance_node)
-    workflow.add_node("transport_planner", transport_node)  # 新增
+    workflow.add_node("transport_planner", transport_node)
     workflow.add_node("renderer", render_node)
 
     workflow.set_entry_point("intent_parser")
@@ -278,8 +227,8 @@ def create_travel_graph():
     workflow.add_edge("route_optimizer", "weather_adjuster")
     workflow.add_edge("weather_adjuster", "scoring")
     workflow.add_edge("scoring", "finance_advisor")
-    workflow.add_edge("finance_advisor", "transport_planner")  # 修改：finance → transport
-    workflow.add_edge("transport_planner", "renderer")  # 修改：transport → renderer
+    workflow.add_edge("finance_advisor", "transport_planner")
+    workflow.add_edge("transport_planner", "renderer")
     workflow.add_edge("renderer", END)
 
     return workflow.compile()
