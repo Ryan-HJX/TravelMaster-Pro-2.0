@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import time
 import asyncio
@@ -31,11 +30,11 @@ class BailianClient:
         tools: list[dict[str, Any]] | None = None,
         instructions: str | None = None,
         temperature: float = 0.7,
-        retries: int = 3
+        retries: int = 2
     ) -> dict[str, Any]:
         """Call DashScope with retries and massive timeout."""
         model = model or self.main_model
-        
+
         messages: list[dict[str, str]] = []
         if instructions:
             messages.append({"role": "system", "content": instructions})
@@ -58,27 +57,27 @@ class BailianClient:
 
         # Use an even larger timeout (5 minutes) for extremely poor network conditions
         timeout = httpx.Timeout(300.0, connect=30.0, read=300.0)
-        
+
         for attempt in range(retries):
             start = time.monotonic()
             async with httpx.AsyncClient(timeout=timeout, trust_env=True) as client:
                 try:
                     logger.info(">>> [LLM] Attempt %d/%d calling DashScope (%s)...", attempt + 1, retries, model)
                     response = await client.post(self._url, json=payload, headers=headers)
-                    
-                    if response.status_code == 429: # Rate limit
-                        logger.warning(">>> [LLM] Rate limited, waiting 5s...")
-                        await asyncio.sleep(5)
+
+                    if response.status_code == 429:  # Rate limit
+                        logger.warning(">>> [LLM] Rate limited, waiting 10s...")
+                        await asyncio.sleep(10)
                         continue
-                        
+
                     response.raise_for_status()
                     data = response.json()
-                    
+
                     output = data.get("output", {})
                     choices = output.get("choices", [])
                     output_text = ""
                     tool_calls = []
-                    
+
                     if choices:
                         message = choices[0].get("message", {})
                         output_text = message.get("content", "")
@@ -93,7 +92,7 @@ class BailianClient:
 
                     latency = int((time.monotonic() - start) * 1000)
                     logger.info(">>> [LLM SUCCESS] Latency: %dms", latency)
-                    
+
                     return {
                         "output_text": output_text,
                         "tool_calls": tool_calls,
@@ -101,16 +100,18 @@ class BailianClient:
                         "latency_ms": latency,
                         "model": model,
                     }
-                    
+
                 except httpx.ReadTimeout:
                     logger.error("!!! [LLM TIMEOUT] Read timeout on attempt %d. Network is very slow.", attempt + 1)
-                    if attempt == retries - 1: raise
-                    await asyncio.sleep(2)
+                    if attempt == retries - 1:
+                        raise
+                    await asyncio.sleep(5)
                 except Exception as e:
                     logger.error("!!! [LLM ERROR] %s: %s", type(e).__name__, str(e))
-                    if attempt == retries - 1: raise
-                    await asyncio.sleep(2)
-        
+                    if attempt == retries - 1:
+                        raise
+                    await asyncio.sleep(5)
+
         raise Exception("Failed after maximum retries")
 
     async def plan_with_mcp(self, prompt: str, mcp_tools: list[dict], instructions: str | None = None) -> dict[str, Any]:

@@ -15,8 +15,6 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any
 
-import httpx
-
 from src.config.settings import settings
 from src.llm.model_router import router
 from src.schemas.plan import TravelIntent
@@ -75,7 +73,7 @@ async def call_yingmi_mcp(prompt: str, instructions: str | None = None) -> dict[
 
 def calculate_budget(intent: TravelIntent, transport_cost: int = 0) -> dict[str, Any]:
     """Calculate travel budget based on intent parameters.
-    
+
     Args:
         intent: 旅行意图
         transport_cost: 大交通费用(往返总费用)
@@ -90,7 +88,7 @@ def calculate_budget(intent: TravelIntent, transport_cost: int = 0) -> dict[str,
     daily_base: int = int(budget_info["daily"])
     days_int: int = int(intent.days)
     local_total: int = daily_base * days_int  # 当地消费总额
-    
+
     # 总预算 = 当地消费 + 大交通费用
     grand_total = local_total + transport_cost
 
@@ -151,7 +149,7 @@ def generate_liquidity_alerts(intent: TravelIntent) -> list[dict[str, str]]:
         alerts.append({
             "type": "节假日赎回提醒",
             "reminder": "法定节假日期间基金赎回可能延迟到账",
-            "deadline": f"假期前最后一个交易日",
+            "deadline": "假期前最后一个交易日",
             "recommendation": "如遇节假日出行，请提前3-5个工作日安排赎回"
         })
 
@@ -205,7 +203,7 @@ def generate_cash_reserve_recommendation(budget_info: dict) -> dict[str, Any]:
 
 async def analyze_finance(intent: TravelIntent, pois: list[Any], transport_cost: int = 0) -> dict[str, Any]:
     """分析旅行资金规划
-    
+
     Args:
         intent: 旅行意图
         pois: POI列表
@@ -323,12 +321,12 @@ async def analyze_finance(intent: TravelIntent, pois: list[Any], transport_cost:
 
 def generate_fund_recommendations(budget_info: dict, days: int) -> list[dict[str, Any]]:
     """Generate low-risk fund product recommendations for travel budget.
-    
-    Based on Yingmi Finance data patterns, recommend suitable money market 
+
+    Based on Yingmi Finance data patterns, recommend suitable money market
     and short-term bond funds for travel liquidity management.
     """
     total_numeric = int(budget_info["total_budget"].replace("¥", "").replace(",", ""))
-    
+
     return [
         {
             "type": "货币基金",
@@ -371,19 +369,19 @@ def generate_fund_recommendations(budget_info: dict, days: int) -> list[dict[str
 
 def generate_insurance_suggestion(intent: TravelIntent) -> dict[str, Any]:
     """Generate travel insurance recommendations based on trip parameters."""
-    
+
     # Calculate insurance cost (typically 1-3% of total budget)
     base_rate = 0.02  # 2% base rate
-    
+
     # Adjust based on trip duration
     duration_factor = 1.0 + (intent.days - 3) * 0.1 if intent.days > 3 else 1.0
-    
+
     # Adjust based on destination risk (simplified)
     high_risk_cities = ["拉萨", "丽江", "香格里拉", "稻城亚丁"]
     risk_factor = 1.5 if intent.city in high_risk_cities else 1.0
-    
+
     estimated_premium = int(300 * base_rate * duration_factor * risk_factor * intent.days)
-    
+
     return {
         "recommended": True,
         "estimated_premium": f"¥{estimated_premium}",
@@ -414,12 +412,12 @@ def generate_insurance_suggestion(intent: TravelIntent) -> dict[str, Any]:
 
 def generate_expense_tracker_template(budget_info: dict, days: int) -> dict[str, Any]:
     """Generate an expense tracking template for the trip.
-    
+
     Creates a structured template that users can use to track daily expenses
     during their trip.
     """
     daily_budget = int(budget_info["daily_average"].replace("¥", "").replace(",", ""))
-    
+
     # Generate daily categories with recommended limits
     daily_template = {
         "date": "YYYY-MM-DD",
@@ -438,14 +436,14 @@ def generate_expense_tracker_template(budget_info: dict, days: int) -> dict[str,
         "daily_total_actual": 0,
         "variance": 0
     }
-    
+
     # Generate full trip template
     trip_template = []
     for day in range(1, days + 1):
         day_template = daily_template.copy()
         day_template["day_number"] = day
         trip_template.append(day_template)
-    
+
     return {
         "format": "daily_tracking",
         "currency": "CNY",
@@ -463,7 +461,7 @@ def generate_expense_tracker_template(budget_info: dict, days: int) -> dict[str,
 
 def generate_multi_currency_support(intent: TravelIntent) -> dict[str, Any] | None:
     """Generate currency exchange suggestions for international travel.
-    
+
     Returns None for domestic travel, or currency info for international destinations.
     """
     # Simplified check - in production, use a proper country/city database
@@ -477,12 +475,12 @@ def generate_multi_currency_support(intent: TravelIntent) -> dict[str, Any] | No
         "伦敦": {"currency": "GBP", "symbol": "£", "name": "英镑", "exchange_rate_hint": "1 CNY ≈ 0.11 GBP"},
         "纽约": {"currency": "USD", "symbol": "$", "name": "美元", "exchange_rate_hint": "1 CNY ≈ 0.14 USD"},
     }
-    
+
     if intent.city not in international_currencies:
         return None  # Domestic travel
-    
+
     currency_info = international_currencies[intent.city]
-    
+
     return {
         "destination_currency": currency_info,
         "exchange_tips": [

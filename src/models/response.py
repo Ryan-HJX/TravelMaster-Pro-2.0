@@ -4,6 +4,7 @@ import time
 
 T = TypeVar("T")
 
+
 class BaseResponse(BaseModel, Generic[T]):
     """
     标准 API 响应格式

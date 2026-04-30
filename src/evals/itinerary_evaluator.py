@@ -34,7 +34,6 @@ def evaluate_itinerary(structured_content: dict[str, Any]) -> EvalResult:
     enriched_pois = structured_content.get("enriched_pois", [])
     route_options = structured_content.get("route_options", [])
     weather_forecast = structured_content.get("weather_forecast", [])
-    planning_score = structured_content.get("planning_score", {})
 
     # 1. POI Coverage (0-20)
     poi_count = len(enriched_pois)

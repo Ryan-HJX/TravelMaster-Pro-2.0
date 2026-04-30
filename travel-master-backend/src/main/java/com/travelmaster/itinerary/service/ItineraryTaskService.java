@@ -35,8 +35,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.netty.http.client.HttpClient;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -85,19 +87,22 @@ public class ItineraryTaskService {
         this.rankingService = rankingService;
         this.behaviorEventService = behaviorEventService;
         
-        // Safe initialization of WebClient with null checks
-        String baseUrl = "http://localhost:8000"; // Default fallback
-        if (properties != null && properties.getAi() != null && properties.getAi().getBaseUrl() != null) {
-            baseUrl = properties.getAi().getBaseUrl();
-        }
-        this.pythonWebClient = WebClient.builder().baseUrl(baseUrl).build();
+        String baseUrl = properties.getAi() != null && properties.getAi().getBaseUrl() != null
+                ? properties.getAi().getBaseUrl()
+                : "http://localhost:8000";
+        this.pythonWebClient = WebClient.builder()
+                .baseUrl(baseUrl)
+                .clientConnector(new ReactorClientHttpConnector(
+                        HttpClient.create().responseTimeout(Duration.ofSeconds(30))
+                ))
+                .build();
     }
 
     @Transactional
     public TaskResponse createTask(String userId, CreateTaskRequest request, String rawIdempotencyKey, String ip) {
         rateLimitService.assertWithinLimit("itinerary-task", userId, ip, 20, 60, Duration.ofMinutes(1));
         String idempotencyKey = rawIdempotencyKey == null || rawIdempotencyKey.isBlank()
-                ? Integer.toHexString((userId + ":" + request.userInput()).hashCode())
+                ? UUID.randomUUID().toString()
                 : rawIdempotencyKey;
         RLock lock = redissonClient.getLock("lock:itinerary-task:" + userId + ":" + idempotencyKey);
         boolean locked = lock.tryLock();

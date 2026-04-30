@@ -2,7 +2,6 @@ from typing import Any
 from typing_extensions import TypedDict
 
 from src.schemas.plan import (
-    DayPlan,
     EnrichedPOI,
     FallbackPOI,
     MCPToolCall,

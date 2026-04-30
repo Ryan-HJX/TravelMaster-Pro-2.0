@@ -4,12 +4,10 @@ Stage 8: Inter-city Transport Planner (新增：大交通规划)
 """
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime, timedelta
 from typing import TypedDict
 
 from src.schemas.plan import TravelIntent, TransportPlan, InterCityTransport
-from src.config.settings import settings
 
 
 class FlightData(TypedDict):

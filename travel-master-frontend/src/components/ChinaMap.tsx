@@ -29,6 +29,7 @@ const ChinaMap: React.FC<ChinaMapProps> = ({ visitedCities, onCityToggle, onClos
   const [chartInstance, setChartInstance] = useState<echarts.ECharts | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [mapLoading, setMapLoading] = useState(true);
+  const [mapLoaded, setMapLoaded] = useState(false);
 
   // 初始化图表
   useEffect(() => {
@@ -76,6 +77,7 @@ const ChinaMap: React.FC<ChinaMapProps> = ({ visitedCities, onCityToggle, onClos
         // 注册地图
         echarts.registerMap('china', geoJson);
         console.log('✓ Map registered successfully');
+        setMapLoaded(true);
         
         // 更新图表
         updateProvinceMap(chart);
@@ -232,10 +234,10 @@ const ChinaMap: React.FC<ChinaMapProps> = ({ visitedCities, onCityToggle, onClos
 
   // 当visitedCities变化时更新图表
   useEffect(() => {
-    if (chartInstance) {
+    if (chartInstance && mapLoaded) {
       updateProvinceMap(chartInstance);
     }
-  }, [visitedCities, chartInstance]);
+  }, [visitedCities.length, chartInstance, mapLoaded]);
 
   // 筛选省份
   const getFilteredProvinces = () => {

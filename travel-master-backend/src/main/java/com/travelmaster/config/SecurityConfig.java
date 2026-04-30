@@ -41,11 +41,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/", "/index.html", "/static/**", "/assets/**", "/*.js", "/*.css", "/favicon.ico").permitAll()
-                        .requestMatchers("/api/auth/**", "/api/internal/**", "/ws/**", "/error").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/feed", "/api/rankings/**", "/api/analytics/**").permitAll()
-                        .requestMatchers("/api/travel/**", "/api/itineraries/**").permitAll()
-                        // Ensure all API calls are at least reachable
-                        .requestMatchers("/api/**").permitAll() 
+                        .requestMatchers("/api/auth/**", "/ws/**", "/error").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/feed", "/api/rankings/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

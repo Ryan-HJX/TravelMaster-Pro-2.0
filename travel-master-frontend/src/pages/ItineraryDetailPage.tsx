@@ -173,6 +173,9 @@ const ItineraryDetailPage: React.FC = () => {
   useEffect(() => {
     if (!id) return;
     
+    let pollDelay = 5000; // 初始5秒轮询间隔
+    const MAX_DELAY = 30000; // 最大30秒间隔
+    
     const fetchData = async () => {
       try {
         // Try as task first (for new generations)
@@ -190,7 +193,9 @@ const ItineraryDetailPage: React.FC = () => {
             if (task.progress) {
               setTaskProgress(task.progress);
             }
-            setTimeout(fetchData, 2000);
+            // 指数退避：每次轮询间隔增加50%，最大30秒
+            setTimeout(fetchData, pollDelay);
+            pollDelay = Math.min(Math.floor(pollDelay * 1.5), MAX_DELAY);
           }
         } catch (err) {
           // If task not found, try as direct itinerary (for history)

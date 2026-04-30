@@ -48,7 +48,7 @@ def async_step(step_id: str):
 
             try:
                 result = await func(*args, **kwargs)
-            except Exception as exc:
+            except Exception:
                 if task_id:
                     await progress_tracker.update_step_status(task_id, step_id, "failed")
                 raise
@@ -63,7 +63,7 @@ def async_step(step_id: str):
 
 def calculate_budget(intent: Any, transport_cost: int = 0) -> dict[str, Any]:
     """Calculate travel budget based on intent parameters.
-    
+
     Args:
         intent: TravelIntent object or dict with budget and days attributes
         transport_cost: 大交通费用(往返总费用)
@@ -78,11 +78,11 @@ def calculate_budget(intent: Any, transport_cost: int = 0) -> dict[str, Any]:
     budget_key = intent.get("budget", "medium") if isinstance(intent, dict) else getattr(intent, "budget", "medium")
     days_raw = intent.get("days", 3) if isinstance(intent, dict) else getattr(intent, "days", 3)
     days_int = int(days_raw) if days_raw is not None else 3
-    
+
     budget_info = budget_map.get(budget_key, budget_map["medium"])
     daily_base: int = int(budget_info["daily"])
     local_total: int = daily_base * days_int  # 当地消费总额
-    
+
     grand_total = local_total + transport_cost
 
     accommodation = int(local_total * 0.35)

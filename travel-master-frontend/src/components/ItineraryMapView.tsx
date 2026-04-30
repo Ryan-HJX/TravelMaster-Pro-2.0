@@ -154,16 +154,38 @@ export default function ItineraryMapView({ pois, days, planningScore, amapKey }:
       <div style={{ flex: 2, borderRadius: 12, overflow: 'hidden', border: '1px solid #e5e7eb', position: 'relative' }}>
         <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
         
-        {/* Fallback Static Map (visible if JS API fails) */}
+        {/* Fallback Map (visible if JS API fails) */}
         {!mapLoaded && pois.length > 0 && (
-          <div style={{ position: 'absolute', inset: 0, background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img 
-              src={`https://restapi.amap.com/v3/staticmap?location=${pois[0].longitude},${pois[0].latitude}&zoom=13&size=800*600&markers=mid,,A:${pois[0].longitude},${pois[0].latitude}&key=${amapKey}`}
-              alt="Static Map Fallback"
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-            <div style={{ position: 'absolute', bottom: 10, left: 10, background: 'rgba(255,255,255,0.8)', padding: '4px 8px', borderRadius: 4, fontSize: 10, color: '#ef4444' }}>
-              JS API 鉴权失败 (PLAT_NOMATCH)，已切换为静态预览模式
+          <div style={{ position: 'absolute', inset: 0, background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{ 
+              width: '200px', 
+              height: '200px', 
+              background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 20px rgba(59, 130, 246, 0.3)',
+              marginBottom: 16 
+            }}>
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+                <line x1="8" y1="2" x2="8" y2="18"></line>
+                <line x1="16" y1="6" x2="16" y2="22"></line>
+              </svg>
+            </div>
+            <h3 style={{ fontSize: 18, fontWeight: 600, color: '#1f2937', marginBottom: 8 }}>📍 {pois[0].name}</h3>
+            <p style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', maxWidth: '300px' }}>
+              地图加载中... 请检查网络连接或稍后重试
+            </p>
+            <div style={{ marginTop: 16, padding: '8px 16px', background: '#eff6ff', borderRadius: 8 }}>
+              <div style={{ fontSize: 12, color: '#3b82f6', fontWeight: 500 }}>📍 行程地点</div>
+              <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>
+                {pois.slice(0, 3).map((poi, idx) => (
+                  <div key={idx}>{idx + 1}. {poi.name}</div>
+                ))}
+                {pois.length > 3 && <div>... 共 {pois.length} 个地点</div>}
+              </div>
             </div>
           </div>
         )}

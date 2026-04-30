@@ -34,13 +34,13 @@ async def process_stream_tasks() -> None:
                 for _, entries in messages:
                     for message_id, payload in entries:
                         last_id = message_id
-                        
+
                         if "taskId" not in payload or "userInput" not in payload:
                             logger.warning(f"Invalid message format (id: {message_id})")
                             continue
-                            
+
                         logger.info(f"Processing task: {payload['taskId']} (User: {payload.get('userId')})")
-                        
+
                         try:
                             request = WorkerTaskRequest(
                                 task_id=payload["taskId"],
@@ -54,7 +54,7 @@ async def process_stream_tasks() -> None:
                             await _handle_task(travel_service, client, request)
                         except Exception as inner_exc:
                             logger.error(f"Failed to handle task {payload.get('taskId')}: {inner_exc}")
-                            
+
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
@@ -114,7 +114,7 @@ async def _handle_task(travel_service: TravelService, client: httpx.AsyncClient,
         logger.info(f"Initialized progress tracking for task {request.task_id}")
     except Exception as e:
         logger.error(f"Failed to initialize progress tracking: {e}")
-    
+
     try:
         plan = await travel_service.generate_plan(
             user_input=request.user_input,

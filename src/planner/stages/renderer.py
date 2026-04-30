@@ -10,7 +10,7 @@ from src.llm.model_router import router
 from src.schemas.plan import (
     DayPlan, DayPlanItem, EnrichedPOI, FallbackPOI,
     MCPToolCall, PlanningScore, RouteOption, RouteSegment,
-    SkillTrace, StructuredItinerary, TravelIntent, WeatherDay,
+    StructuredItinerary, TravelIntent, WeatherDay,
 )
 
 logger = logging.getLogger(__name__)
@@ -131,21 +131,21 @@ async def render_itinerary(
 
     # Build rendered markdown with table format
     md_lines = [f"# {data.get('title', '')}\n", f"> {data.get('summary', '')}\n"]
-    
+
     for day in days:
         md_lines.append(f"\n## 📅 {day.title}\n")
         if day.weather:
             weather_icon = "☀️" if day.weather.is_outdoor_friendly else "🌧️"
             md_lines.append(f"**天气**: {weather_icon} {day.weather.weather} | 温度: {day.weather.temperature_high}°C / {day.weather.temperature_low}°C\n")
-        
+
         # Create table header
         md_lines.append("| 时间 | 活动 | 地点 | 交通方式 | 备注 |")
         md_lines.append("|------|------|------|----------|------|")
-        
+
         for item in day.items:
             # Format time range
             time_range = f"{item.start_time}-{item.end_time}"
-            
+
             # Format activity with icon
             activity_icons = {
                 "sightseeing": "🏛️",
@@ -157,7 +157,7 @@ async def render_itinerary(
             }
             icon = activity_icons.get(item.activity_type, "📍")
             activity = f"{icon} {item.item_title}"
-            
+
             # Format transport
             transport_info = ""
             if item.transport:
@@ -173,15 +173,15 @@ async def render_itinerary(
                 transport_info = f"{t_icon} {item.transport.mode} ({item.transport.duration_minutes}分钟)"
             else:
                 transport_info = "—"
-            
+
             # Truncate address if too long
             address = item.address[:20] + "..." if len(item.address) > 20 else item.address
-            
+
             # Notes
             notes = item.notes if item.notes else "—"
-            
+
             md_lines.append(f"| **{time_range}** | {activity} | {address} | {transport_info} | {notes} |")
-        
+
         md_lines.append("")  # Empty line after table
 
     return StructuredItinerary(
