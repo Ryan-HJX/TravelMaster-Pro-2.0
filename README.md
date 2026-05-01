@@ -263,47 +263,107 @@ k6 run load-test/task-submit.js
 
 ```
 TravelMaster/
+├── CODE_STRUCTURE_GUIDE.md      # 📚 零基础代码结构详解（新手必读！）
 ├── travel-master-backend/       # Java Spring Boot 主后端
 │   ├── src/main/java/com/travelmaster/
-│   │   ├── auth/                # 认证模块
+│   │   ├── TravelMasterApplication.java  # 应用启动入口
+│   │   ├── controller/          # REST API 控制器层
+│   │   ├── service/             # 业务逻辑服务层
+│   │   ├── dto/                 # 数据传输对象（request/response）
+│   │   ├── entity/              # JPA 实体类（对应数据库表）
+│   │   ├── repository/          # 数据访问层（JPA Repository）
+│   │   ├── auth/                # 认证模块（JWT + Security）
 │   │   ├── user/                # 用户模块
 │   │   ├── itinerary/           # 行程任务模块 (含 2.0 MCP Trace)
-│   │   ├── social/              # 社交模块
-│   │   ├── notification/        # 通知模块
+│   │   ├── social/              # 社交模块（点赞/评论/收藏）
+│   │   ├── notification/        # 通知模块（WebSocket）
 │   │   ├── ranking/             # 排行榜模块
 │   │   ├── analytics/           # 运营分析模块
 │   │   ├── ai/                  # AI 任务发布 (Redis Stream)
 │   │   ├── security/            # JWT 认证过滤器
-│   │   ├── config/              # 全局配置
-│   │   └── common/              # 公共基础
+│   │   ├── config/              # 全局配置（Security/Redis/Web）
+│   │   └── common/              # 公共基础（异常处理/工具类）
 │   └── src/main/resources/
-│       ├── application.properties
-│       └── db/migration/        # Flyway DDL (V1 + V2)
-├── src/                         # Python AI 编排服务
-│   ├── agents/                  # LangGraph 9-Node 工作流
-│   ├── llm/                     # 百炼客户端 + 模型路由
+│       ├── application.properties  # 应用配置
+│       └── db/migration/        # Flyway DDL 迁移脚本
+├── src/                         # Python AI 编排服务（FastAPI）
+│   ├── main.py                  # FastAPI 应用入口
+│   ├── api/v1/                  # API 路由
+│   │   ├── plan.py              # 行程规划接口（SSE 流式响应）
+│   │   └── progress.py          # 进度查询接口
+│   ├── agents/                  # LangGraph Agent 工作流
+│   │   ├── workflow.py          # 9-Node 工作流定义
+│   │   └── state.py             # Agent 状态管理
+│   ├── llm/                     # LLM 客户端
+│   │   ├── bailian_client.py    # 阿里云百炼客户端
+│   │   └── model_router.py      # 模型路由（云端/本地降级）
 │   ├── mcp/                     # MCP 工具注册表
-│   ├── planner/stages/          # 9 段式规划 (意图→地理→POI→路线→天气→评分→资金→交通→渲染)
-│   ├── evals/                   # 行程质量评测
-│   ├── schemas/                 # Pydantic 结构化输出
-│   ├── services/                # TravelService + ProgressTracker
-│   ├── core/                    # 通用工具 + 常量定义
-│   │   ├── utils.py             # JSON 解析、进度跟踪装饰器、预算计算
-│   │   └── constants.py         # WorkflowStep 枚举、步骤配置
+│   ├── planner/stages/          # 9 段式规划引擎
+│   │   ├── intent_parser.py     # 1. 意图解析
+│   │   ├── geo_grounder.py      # 2. 地理 Grounding
+│   │   ├── poi_selector.py      # 3. POI 池构建
+│   │   ├── route_optimizer.py   # 4. 路线优化
+│   │   ├── weather_adjuster.py  # 5. 天气联动
+│   │   ├── scoring.py           # 6. 可执行性评分
+│   │   ├── finance_advisor.py   # 7. 资金建议
+│   │   ├── transport_planner.py # 8. 大交通规划
+│   │   └── renderer.py          # 9. 行程渲染
+│   ├── services/                # 核心服务
+│   │   ├── travel_service.py    # 旅行服务主逻辑
+│   │   └── progress_tracker.py  # 进度追踪器
 │   ├── worker/                  # Redis Stream Worker
-│   └── tests/                   # Python 测试
+│   ├── evals/                   # 行程质量评测
+│   ├── schemas/                 # Pydantic 数据模型
+│   ├── core/                    # 通用工具
+│   │   ├── utils.py             # JSON 解析、装饰器
+│   │   └── constants.py         # 常量定义
+│   └── tests/                   # Python 单元测试
 ├── travel-master-frontend/      # React + TypeScript 前端
-│   ├── src/components/
-│   │   ├── ItineraryMapView.tsx  # 高德 JS API 地图行程
-│   │   ├── RouteAlternatives.tsx # 路线比选
-│   │   └── TravelBudgetAdvisor.tsx # 资金安排
-│   └── ...
-├── config/nginx/                # Nginx 配置
+│   ├── src/
+│   │   ├── main.tsx             # 应用入口
+│   │   ├── App.tsx              # 路由配置
+│   │   ├── pages/               # 页面组件
+│   │   │   ├── AuthPage.tsx     # 登录/注册页
+│   │   │   ├── DashboardPage.tsx # 仪表盘
+│   │   │   ├── ItineraryDetailPage.tsx # 行程详情
+│   │   │   └── SettingsPage.tsx # 设置页
+│   │   ├── components/          # 可复用组件
+│   │   │   ├── PlannerInput.tsx # 行程规划输入表单
+│   │   │   ├── ItineraryViewer.tsx # 行程查看器
+│   │   │   ├── ItineraryMapView.tsx # 高德地图展示
+│   │   │   ├── RouteAlternatives.tsx # 路线比选
+│   │   │   ├── ChinaMap.tsx     # 足迹地图（省级）
+│   │   │   └── TravelBudgetAdvisor.tsx # 资金安排助手
+│   │   ├── hooks/               # 自定义 Hooks
+│   │   │   ├── useTravelPlanner.ts # 行程规划 Hook（SSE）
+│   │   │   └── useNotificationWs.ts # WebSocket 通知
+│   │   └── services/
+│   │       └── api.ts           # API 调用封装（Axios）
+│   └── ...                      # 配置文件（vite/tailwind/tsconfig）
+├── config/nginx/                # Nginx 反向代理配置
 ├── load-test/                   # k6 压测脚本
-├── docs/                        # 文档 (SQL Showcase 等)
-├── docker-compose.yml
-└── ARCHITECTURE.md              # 架构设计文档
+├── docs/                        # 技术文档
+│   ├── ai-internship-interview-guide.md # AI 实习面试指南
+│   ├── career-guide.md          # 职业发展指南
+│   ├── deployment-troubleshooting.md # 部署问题排查
+│   └── sql-showcase.md          # SQL 案例展示
+├── docker-compose.yml           # Docker 编排配置
+├── ARCHITECTURE.md              # 架构设计文档
+└── .env.example                 # 环境变量模板
 ```
+
+### 🎯 新手学习路径
+
+对于零基础开发者，建议按以下顺序阅读：
+
+1. **先读 [CODE_STRUCTURE_GUIDE.md](./CODE_STRUCTURE_GUIDE.md)** - 完整的代码结构详解和前后端接口对应关系
+2. **体验产品** - 运行项目，熟悉所有功能
+3. **从前端入手** - 查看 `travel-master-frontend/src/services/api.ts` 了解所有 API 调用
+4. **追踪简单功能** - 如登录流程：前端 → Java Controller → Service → Database
+5. **深入 AI 核心** - 理解 Python 9 段式工作流和 LangGraph Agent
+6. **动手实践** - 尝试添加一个小功能（如修改用户昵称）
+
+详细的学习指南请查看 **[CODE_STRUCTURE_GUIDE.md](./CODE_STRUCTURE_GUIDE.md)** 📖
 
 ---
 
