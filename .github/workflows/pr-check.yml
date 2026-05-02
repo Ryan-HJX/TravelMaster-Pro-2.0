@@ -1,0 +1,65 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  JAVA_VERSION: 21
+
+jobs:
+  pr-validation:
+    name: PR Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build and run tests
+        run: cd travel-master-backend && mvn clean test -q
+
+      - name: Check code formatting
+        run: cd travel-master-backend && mvn spotless:check
+
+      - name: Run SonarQube analysis
+        uses: SonarSource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.projectKey=TravelMaster
+            -Dsonar.sources=travel-master-backend/src/main/java
+            -Dsonar.tests=travel-master-backend/src/test/java
+            -Dsonar.java.binaries=travel-master-backend/target/classes
+
+  dependency-check:
+    name: Dependency Security Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run OWASP Dependency-Check
+        uses: jeremylong/DependencyCheck-action@v4
+        with:
+          project: 'TravelMaster-PR'
+          scanPath: 'travel-master-backend'
+          format: 'HTML'
+          out: 'reports'
+          failOnCVSS: 7
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-report
+          path: reports/

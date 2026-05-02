@@ -12,11 +12,13 @@ com\travelmaster\compat\PlanResponse$DataContent.class
 com\travelmaster\itinerary\entity\ItineraryGenerationTask.class
 com\travelmaster\social\repository\PostFavoriteRepository.class
 com\travelmaster\compat\PlanResponse.class
+com\travelmaster\itinerary\dto\TaskProgress.class
 com\travelmaster\social\repository\FollowRepository.class
 com\travelmaster\user\repository\AppUserRepository.class
 com\travelmaster\ai\service\AiTaskPublisher.class
 com\travelmaster\config\RedisConfig$TwoLevelCache.class
 com\travelmaster\itinerary\repository\ItineraryGenerationTaskRepository.class
+com\travelmaster\config\GlobalRequestLoggerFilter.class
 com\travelmaster\social\entity\PostLike.class
 com\travelmaster\security\JwtAuthenticationFilter.class
 com\travelmaster\auth\service\AuthService.class
@@ -75,11 +77,13 @@ com\travelmaster\itinerary\dto\CreateTaskRequest.class
 com\travelmaster\user\dto\UpdateUserProfileRequest.class
 com\travelmaster\auth\dto\RegisterRequest.class
 com\travelmaster\notification\entity\NotificationType.class
+com\travelmaster\security\InternalApiFilter.class
 com\travelmaster\ai\dto\AiTaskResultRequest$DayPlan.class
 com\travelmaster\config\RedisConfig.class
 com\travelmaster\social\service\SocialService.class
 com\travelmaster\analytics\controller\AnalyticsController.class
 com\travelmaster\config\WebSocketConfig.class
+com\travelmaster\itinerary\dto\ProgressStep.class
 com\travelmaster\user\entity\UserStatus.class
 com\travelmaster\ai\dto\AiTaskResultRequest$RouteSegment.class
 com\travelmaster\itinerary\dto\PublishItineraryRequest.class
@@ -94,3 +98,4 @@ com\travelmaster\config\JacksonConfig.class
 com\travelmaster\itinerary\entity\Itinerary.class
 com\travelmaster\analytics\service\BehaviorEventService.class
 com\travelmaster\compat\LegacyTravelService.class
+com\travelmaster\config\OpenApiConfig.class

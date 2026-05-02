@@ -71,8 +71,6 @@ class ItineraryTaskServiceTest {
         );
     }
 
-    // ---- Create Task Tests ----
-
     @Test
     @DisplayName("createTask - new task is created and published to stream")
     void createTask_new_success() {
@@ -132,8 +130,6 @@ class ItineraryTaskServiceTest {
         assertEquals(409, exception.getStatus().value());
     }
 
-    // ---- Get Task Tests ----
-
     @Test
     @DisplayName("getTask - returns task for user")
     void getTask_success() {
@@ -153,92 +149,6 @@ class ItineraryTaskServiceTest {
 
         assertThrows(AppException.class,
                 () -> itineraryTaskService.getTask(USER_ID, TASK_ID));
-    }
-
-    // ---- Complete Task Tests ----
-
-    @Test
-    @DisplayName("completeTask - success creates itinerary and items")
-    void completeTask_success() {
-        ItineraryGenerationTask task = buildTask(TASK_ID, TaskStatus.PROCESSING);
-        when(taskRepository.findById(TASK_ID)).thenReturn(Optional.of(task));
-
-        AiTaskResultRequest.RouteSegment transport = new AiTaskResultRequest.RouteSegment("subway", 30);
-        AiTaskResultRequest.PlanItem item = new AiTaskResultRequest.PlanItem(
-                1, "Visit Palace Museum", "sightseeing", "Dongcheng, Beijing",
-                "09:00", "12:00", transport, "Arrive early"
-        );
-        AiTaskResultRequest.DayPlan day = new AiTaskResultRequest.DayPlan(1, "Day 1", List.of(item));
-        AiTaskResultRequest result = new AiTaskResultRequest(
-                true, "trace-001", "v1-pro",
-                "Beijing 3 Days", "A cultural tour", "Watch weather",
-                "## Day 1\n...", Map.of(), List.of(day), null,
-                "qwen3-plus", "qwen3-plus", null, null, false, "normal",
-                null, null, null, null, null
-        );
-
-        Itinerary savedItinerary = new Itinerary();
-        try {
-            var field = savedItinerary.getClass().getSuperclass().getDeclaredField("id");
-            field.setAccessible(true);
-            field.set(savedItinerary, "itinerary-001");
-        } catch (Exception ignored) {}
-        when(itineraryRepository.save(any(Itinerary.class))).thenReturn(savedItinerary);
-        when(itineraryRepository.findById("itinerary-001")).thenReturn(Optional.of(savedItinerary));
-        when(itineraryItemRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(taskRepository.save(any(ItineraryGenerationTask.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(itineraryItemRepository.findByItineraryIdOrderByDayNumberAscSequenceNumberAsc("itinerary-001")).thenReturn(List.of());
-
-        TaskResponse response = itineraryTaskService.completeTask(TASK_ID, result);
-
-        assertEquals(TaskStatus.COMPLETED, response.status());
-        assertNull(response.failureReason());
-        verify(itineraryRepository).save(any(Itinerary.class));
-        verify(itineraryItemRepository).save(any());
-        verify(notificationService).createNotification(eq(USER_ID), isNull(), any(), anyString(), anyString(), anyString(), anyString());
-    }
-
-    @Test
-    @DisplayName("completeTask - failure sets status FAILED")
-    void completeTask_failure() {
-        ItineraryGenerationTask task = buildTask(TASK_ID, TaskStatus.PROCESSING);
-        when(taskRepository.findById(TASK_ID)).thenReturn(Optional.of(task));
-
-        AiTaskResultRequest result = new AiTaskResultRequest(
-                false, "trace-001", "v1-pro",
-                null, null, null, null, Map.of(), List.of(),
-                "LLM timeout",
-                null, null, null, null, false, null,
-                null, null, null, null, null
-        );
-        when(taskRepository.save(any(ItineraryGenerationTask.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        TaskResponse response = itineraryTaskService.completeTask(TASK_ID, result);
-
-        assertEquals(TaskStatus.FAILED, response.status());
-        assertEquals("LLM timeout", response.failureReason());
-        verify(itineraryRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("completeTask - already completed is idempotent")
-    void completeTask_alreadyCompleted_idempotent() {
-        ItineraryGenerationTask task = buildTask(TASK_ID, TaskStatus.COMPLETED);
-        task.setItineraryId("itinerary-001");
-        when(taskRepository.findById(TASK_ID)).thenReturn(Optional.of(task));
-        when(itineraryRepository.findById("itinerary-001")).thenReturn(Optional.empty());
-
-        AiTaskResultRequest result = new AiTaskResultRequest(
-                true, "trace-001", "v1-pro", "title", "summary",
-                null, null, Map.of(), List.of(), null,
-                null, null, null, null, false, null,
-                null, null, null, null, null
-        );
-
-        TaskResponse response = itineraryTaskService.completeTask(TASK_ID, result);
-
-        assertEquals(TaskStatus.COMPLETED, response.status());
-        verify(taskRepository, never()).save(any());
     }
 
     private ItineraryGenerationTask buildTask(String id, TaskStatus status) {

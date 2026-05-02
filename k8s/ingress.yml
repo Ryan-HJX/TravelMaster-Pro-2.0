@@ -1,0 +1,39 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: travelmaster-ingress
+  namespace: travelmaster
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/http2-enable: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/client-max-body-size: "50m"
+spec:
+  tls:
+    - hosts:
+        - travelmaster.com
+        - api.travelmaster.com
+      secretName: travelmaster-tls
+  rules:
+    - host: api.travelmaster.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: travelmaster-backend
+                port:
+                  number: 8080
+    - host: travelmaster.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: travelmaster-frontend
+                port:
+                  number: 80

@@ -1,4 +1,5 @@
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\itinerary\dto\ItineraryItemResponse.java
+E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\itinerary\dto\TaskProgress.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\social\dto\AuthorSummaryResponse.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\user\entity\UserAuth.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\ai\service\AiTaskPublisher.java
@@ -41,6 +42,7 @@ E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\config\RedisConfig.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\config\SecurityConfig.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\notification\service\NotificationService.java
+E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\security\InternalApiFilter.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\common\exception\GlobalExceptionHandler.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\compat\PlanResponse.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\itinerary\repository\ItineraryRepository.java
@@ -54,8 +56,10 @@ E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\itinerary\entity\TaskStatus.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\notification\dto\NotificationResponse.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\auth\service\RateLimitService.java
+E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\config\GlobalRequestLoggerFilter.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\social\repository\FollowRepository.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\itinerary\dto\PublishItineraryRequest.java
+E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\itinerary\dto\ProgressStep.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\itinerary\repository\ItineraryGenerationTaskRepository.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\notification\entity\NotificationType.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\social\entity\Post.java
@@ -71,6 +75,7 @@ E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\user\dto\UpdateUserProfileRequest.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\analytics\service\BehaviorEventService.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\common\exception\AppException.java
+E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\config\OpenApiConfig.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\auth\dto\RefreshTokenRequest.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\user\repository\AppUserRepository.java
 E:\my_project\TravelMaster\travel-master-backend\src\main\java\com\travelmaster\social\dto\CommentRequest.java

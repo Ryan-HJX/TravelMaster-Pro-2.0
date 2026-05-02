@@ -272,17 +272,49 @@ cd travel-master-frontend && npm install && npm run dev
 ## 测试
 
 ```bash
-# Java 单元测试 + 集成测试 (35 tests)
+# Java 单元测试 + 集成测试 + 契约测试
 cd travel-master-backend && mvn test
 
 # Python 测试
 python -m pytest src/tests -q
 
 # k6 压测（需安装 k6）
-k6 run load-test/login-stress.js
-k6 run load-test/feed-interaction.js
-k6 run load-test/task-submit.js
+k6 run load-test/login-stress.js           # 登录压力测试
+k6 run load-test/feed-interaction.js      # Feed 浏览 + 互动
+k6 run load-test/task-submit.js           # 任务提交 + 限流
+k6 run load-test/api-comprehensive.js      # 综合 API 压测（混合负载）
+k6 run load-test/health-check.js           # 健康检查压测
+
+# JMeter 压测
+jmeter -n -t load-test/TravelMaster-Perf-Test.jmx -l results/jmeter-results.jtl
 ```
+
+### 测试覆盖
+
+| 测试类型 | 工具 | 覆盖范围 |
+|---------|------|----------|
+| 单元测试 | JUnit 5 + Mockito | Auth, User, Itinerary, Social, Security 等模块 |
+| 集成测试 | Spring Test + H2 | 数据库操作、事务处理 |
+| 契约测试 | Rest-Assured | API 请求响应契约验证 |
+| 压力测试 | k6 + JMeter | 登录、Feed、任务提交等场景 |
+| 监控告警 | Prometheus + Grafana | HTTP 请求、JVM、数据库、Redis 等指标 |
+
+### CI/CD 流水线
+
+项目使用 GitHub Actions 实现完整的 CI/CD 流程：
+
+| 工作流 | 触发条件 | 主要步骤 |
+|--------|----------|----------|
+| `ci-cd.yml` | push/PR 到 main/develop | 构建 → 单元测试 → 安全扫描 → 性能测试 → Docker 构建 → K8s 部署 |
+| `pr-check.yml` | PR 到 main/develop | 代码格式检查 → SonarQube 分析 → 依赖安全检查 |
+
+### 监控体系
+
+- **Prometheus**: 指标采集（HTTP 请求、JVM 内存、数据库连接、Redis Stream 等）
+- **Grafana**: 可视化仪表盘（请求量、错误率、P95 延迟、内存使用等）
+- **Alertmanager**: 告警通知（支持 Slack、邮件）
+
+告警规则：10+ 条关键告警（5xx 错误率 > 5%、P95 延迟 > 2s、服务宕机、内存使用 > 85% 等）
 
 ---
 
@@ -296,87 +328,120 @@ TravelMaster/
 │   │   ├── TravelMasterApplication.java  # 应用启动入口
 │   │   ├── controller/          # REST API 控制器层
 │   │   ├── service/             # 业务逻辑服务层
-│   │   ├── dto/                 # 数据传输对象（request/response）
-│   │   ├── entity/              # JPA 实体类（对应数据库表）
-│   │   ├── repository/          # 数据访问层（JPA Repository）
-│   │   ├── auth/                # 认证模块（JWT + Security）
-│   │   ├── user/                # 用户模块
-│   │   ├── itinerary/           # 行程任务模块 (含 2.0 MCP Trace)
-│   │   ├── social/              # 社交模块（点赞/评论/收藏）
-│   │   ├── notification/        # 通知模块（WebSocket）
-│   │   ├── ranking/             # 排行榜模块
-│   │   ├── analytics/           # 运营分析模块
-│   │   ├── ai/                  # AI 任务发布 (Redis Stream)
-│   │   ├── security/            # JWT 认证过滤器
-│   │   ├── config/              # 全局配置（Security/Redis/Web）
-│   │   └── common/              # 公共基础（异常处理/工具类）
+│   │   ├── dto/                # 数据传输对象（request/response）
+│   │   ├── entity/             # JPA 实体类（对应数据库表）
+│   │   ├── repository/         # 数据访问层（JPA Repository）
+│   │   ├── auth/               # 认证模块（JWT + Security）
+│   │   ├── user/               # 用户模块
+│   │   ├── itinerary/          # 行程任务模块 (含 2.0 MCP Trace)
+│   │   ├── social/             # 社交模块（点赞/评论/收藏）
+│   │   ├── notification/       # 通知模块（WebSocket）
+│   │   ├── ranking/            # 排行榜模块
+│   │   ├── analytics/          # 运营分析模块
+│   │   ├── ai/                 # AI 任务发布 (Redis Stream)
+│   │   ├── security/           # JWT 认证过滤器
+│   │   ├── config/             # 全局配置（Security/Redis/Web）
+│   │   └── common/             # 公共基础（异常处理/工具类）
 │   └── src/main/resources/
 │       ├── application.properties  # 应用配置
 │       └── db/migration/        # Flyway DDL 迁移脚本
-├── src/                         # Python AI 编排服务（FastAPI）
-│   ├── main.py                  # FastAPI 应用入口
-│   ├── api/v1/                  # API 路由
-│   │   ├── plan.py              # 行程规划接口（SSE 流式响应）
-│   │   └── progress.py          # 进度查询接口
-│   ├── agents/                  # LangGraph Agent 工作流
-│   │   ├── workflow.py          # 9-Node 工作流定义
-│   │   └── state.py             # Agent 状态管理
-│   ├── llm/                     # LLM 客户端
-│   │   ├── bailian_client.py    # 阿里云百炼客户端
-│   │   └── model_router.py      # 模型路由（云端/本地降级）
-│   ├── mcp/                     # MCP 工具注册表
-│   ├── planner/stages/          # 9 段式规划引擎
-│   │   ├── intent_parser.py     # 1. 意图解析（提取出发地、日期等）
-│   │   ├── geo_grounder.py      # 2. 地理 Grounding（高德 MCP）
-│   │   ├── poi_selector.py      # 3. POI 池构建（高德 MCP）
-│   │   ├── route_optimizer.py   # 4. 路线优化（高德 MCP）
-│   │   ├── weather_adjuster.py  # 5. 天气联动（高德 MCP）
-│   │   ├── scoring.py           # 6. 可执行性评分
-│   │   ├── finance_advisor.py   # 7. 资金建议（盈米 MCP）
-│   │   ├── transport_planner.py # 8. 大交通规划（往返航班/火车）
-│   │   └── renderer.py          # 9. 行程渲染（JSON + Markdown）
-│   ├── services/                # 核心服务
-│   │   ├── travel_service.py    # 旅行服务主逻辑
-│   │   └── progress_tracker.py  # 进度追踪器
-│   ├── worker/                  # Redis Stream Worker
-│   ├── evals/                   # 行程质量评测
-│   ├── schemas/                 # Pydantic 数据模型
-│   ├── core/                    # 通用工具
-│   │   ├── utils.py             # JSON 解析、装饰器
-│   │   └── constants.py         # 常量定义
-│   └── tests/                   # Python 单元测试
-├── travel-master-frontend/      # React + TypeScript 前端
+├── travel-master-backend/src/test/java/  # Java 测试代码
+│   └── com/travelmaster/
+│       ├── auth/                # 认证模块测试
+│       ├── contract/            # API 契约测试
+│       ├── itinerary/           # 行程模块测试
+│       ├── social/              # 社交模块测试
+│       ├── user/                # 用户模块测试
+│       ├── notification/        # 通知模块测试
+│       └── security/            # 安全模块测试
+├── src/                        # Python AI 编排服务（FastAPI）
+│   ├── main.py                 # FastAPI 应用入口
+│   ├── api/v1/                 # API 路由
+│   │   ├── plan.py             # 行程规划接口（SSE 流式响应）
+│   │   └── progress.py         # 进度查询接口
+│   ├── agents/                 # LangGraph Agent 工作流
+│   │   ├── workflow.py         # 9-Node 工作流定义
+│   │   └── state.py            # Agent 状态管理
+│   ├── llm/                    # LLM 客户端
+│   │   ├── bailian_client.py   # 阿里云百炼客户端
+│   │   └── model_router.py     # 模型路由（云端/本地降级）
+│   ├── mcp/                    # MCP 工具注册表
+│   ├── planner/stages/         # 9 段式规划引擎
+│   │   ├── intent_parser.py    # 1. 意图解析（提取出发地、日期等）
+│   │   ├── geo_grounder.py     # 2. 地理 Grounding（高德 MCP）
+│   │   ├── poi_selector.py     # 3. POI 池构建（高德 MCP）
+│   │   ├── route_optimizer.py # 4. 路线优化（高德 MCP）
+│   │   ├── weather_adjuster.py# 5. 天气联动（高德 MCP）
+│   │   ├── scoring.py          # 6. 可执行性评分
+│   │   ├── finance_advisor.py # 7. 资金建议（盈米 MCP）
+│   │   ├── transport_planner.py# 8. 大交通规划（往返航班/火车）
+│   │   └── renderer.py         # 9. 行程渲染（JSON + Markdown）
+│   ├── services/               # 核心服务
+│   │   ├── travel_service.py   # 旅行服务主逻辑
+│   │   └── progress_tracker.py # 进度追踪器
+│   ├── worker/                 # Redis Stream Worker
+│   ├── evals/                  # 行程质量评测
+│   ├── schemas/                # Pydantic 数据模型
+│   ├── core/                   # 通用工具
+│   │   ├── utils.py            # JSON 解析、装饰器
+│   │   └── constants.py        # 常量定义
+│   └── tests/                  # Python 单元测试
+├── travel-master-frontend/     # React + TypeScript 前端
 │   ├── src/
-│   │   ├── main.tsx             # 应用入口
-│   │   ├── App.tsx              # 路由配置
-│   │   ├── pages/               # 页面组件
-│   │   │   ├── AuthPage.tsx     # 登录/注册页
+│   │   ├── main.tsx           # 应用入口
+│   │   ├── App.tsx           # 路由配置
+│   │   ├── pages/            # 页面组件
+│   │   │   ├── AuthPage.tsx  # 登录/注册页
 │   │   │   ├── DashboardPage.tsx # 仪表盘
 │   │   │   ├── ItineraryDetailPage.tsx # 行程详情
 │   │   │   └── SettingsPage.tsx # 设置页
-│   │   ├── components/          # 可复用组件
+│   │   ├── components/       # 可复用组件
 │   │   │   ├── PlannerInput.tsx # 行程规划输入表单（含日期自动计算）
 │   │   │   ├── ItineraryViewer.tsx # 行程查看器
 │   │   │   ├── ItineraryMapView.tsx # 高德地图展示（POI 标记 + 路线绘制）
 │   │   │   ├── RouteAlternatives.tsx # 路线比选（多交通方式）
-│   │   │   ├── ChinaMap.tsx     # 足迹地图（省级，34个行政区）
+│   │   │   ├── ChinaMap.tsx  # 足迹地图（省级，34个行政区）
 │   │   │   └── TravelBudgetAdvisor.tsx # 资金安排助手（盈米 MCP）
-│   │   ├── hooks/               # 自定义 Hooks
+│   │   ├── hooks/            # 自定义 Hooks
 │   │   │   ├── useTravelPlanner.ts # 行程规划 Hook（SSE）
 │   │   │   └── useNotificationWs.ts # WebSocket 通知
 │   │   └── services/
-│   │       └── api.ts           # API 调用封装（Axios）
-│   └── ...                      # 配置文件（vite/tailwind/tsconfig）
-├── config/nginx/                # Nginx 反向代理配置
-├── load-test/                   # k6 压测脚本
-├── docs/                        # 技术文档
+│   │       └── api.ts        # API 调用封装（Axios）
+│   └── ...                   # 配置文件（vite/tailwind/tsconfig）
+├── config/nginx/              # Nginx 反向代理配置
+├── load-test/                 # 性能测试脚本
+│   ├── login-stress.js        # 登录压力测试
+│   ├── feed-interaction.js    # Feed 浏览 + 互动测试
+│   ├── task-submit.js         # 任务提交 + 限流测试
+│   ├── api-comprehensive.js   # 综合 API 压测
+│   ├── health-check.js        # 健康检查测试
+│   └── TravelMaster-Perf-Test.jmx # JMeter 测试计划
+├── .github/workflows/          # GitHub Actions CI/CD
+│   ├── ci-cd.yml             # 完整 CI/CD 流水线
+│   └── pr-check.yml           # PR 检查工作流
+├── monitoring/                # 监控告警配置
+│   ├── prometheus.yml         # Prometheus 配置
+│   ├── alertmanager.yml       # Alertmanager 配置
+│   ├── rules/
+│   │   └── travelmaster-alerts.yml # 告警规则
+│   └── grafana-dashboard.json # Grafana 仪表盘
+├── k8s/                      # Kubernetes 部署配置
+│   ├── travelmaster-backend-deployment.yml
+│   ├── travelmaster-backend-service.yml
+│   ├── travelmaster-frontend-deployment.yml
+│   ├── travelmaster-frontend-service.yml
+│   ├── mysql-statefulset.yml
+│   ├── redis-deployment.yml
+│   ├── hpa.yml               # 水平自动扩缩容
+│   └── ingress.yml           # Ingress 配置
+├── docs/                     # 技术文档
 │   ├── ai-internship-interview-guide.md # AI 实习面试指南
-│   ├── career-guide.md          # 职业发展指南
+│   ├── career-guide.md       # 职业发展指南
 │   ├── deployment-troubleshooting.md # 部署问题排查
-│   └── sql-showcase.md          # SQL 案例展示
-├── docker-compose.yml           # Docker 编排配置
-├── ARCHITECTURE.md              # 架构设计文档
-└── .env.example                 # 环境变量模板
+│   └── sql-showcase.md       # SQL 案例展示
+├── docker-compose.yml        # Docker 编排配置
+├── ARCHITECTURE.md           # 架构设计文档
+└── .env.example              # 环境变量模板
 ```
 
 ### 🎯 新手学习路径

@@ -1,0 +1,102 @@
+groups:
+  - name: travelmaster-alerts
+    rules:
+      - alert: HighErrorRate
+        expr: sum(rate(http_requests_total{status="5xx"}[5m])) / sum(rate(http_requests_total[5m])) > 0.05
+        for: 1m
+        labels:
+          severity: critical
+          service: travelmaster-backend
+        annotations:
+          summary: "High 5xx error rate detected"
+          description: "Error rate is {{ $value | humanize }}% for TravelMaster backend"
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 2
+        for: 2m
+        labels:
+          severity: warning
+          service: travelmaster-backend
+        annotations:
+          summary: "High P95 latency detected"
+          description: "P95 latency is {{ $value | humanize }}s for TravelMaster backend"
+
+      - alert: ServiceUnavailable
+        expr: up{job="travelmaster-backend"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: travelmaster-backend
+        annotations:
+          summary: "TravelMaster backend is unavailable"
+          description: "TravelMaster backend instance {{ $labels.instance }} is down"
+
+      - alert: HighMemoryUsage
+        expr: (sum(jvm_memory_used_bytes{area="heap"}) / sum(jvm_memory_max_bytes{area="heap"})) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: travelmaster-backend
+        annotations:
+          summary: "High JVM memory usage"
+          description: "JVM heap usage is {{ $value | humanize }}% for TravelMaster backend"
+
+      - alert: HighCPUUsage
+        expr: sum(rate(process_cpu_usage{job="travelmaster-backend"}[5m])) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: travelmaster-backend
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value | humanize }}% for TravelMaster backend"
+
+      - alert: DatabaseConnectionPoolHigh
+        expr: sum(hikaricp_connections_active) / sum(hikaricp_connections_max) * 100 > 80
+        for: 2m
+        labels:
+          severity: warning
+          service: travelmaster-backend
+        annotations:
+          summary: "High database connection pool usage"
+          description: "Connection pool usage is {{ $value | humanize }}% for TravelMaster backend"
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "Redis is unavailable"
+          description: "Redis instance {{ $labels.instance }} is down"
+
+      - alert: MySQLDown
+        expr: up{job="mysql"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: mysql
+        annotations:
+          summary: "MySQL is unavailable"
+          description: "MySQL instance {{ $labels.instance }} is down"
+
+      - alert: LoginRateAnomaly
+        expr: sum(rate(http_requests_total{endpoint="/api/auth/login", status="200"}[10m])) > 100
+        for: 1m
+        labels:
+          severity: warning
+          service: travelmaster-backend
+        annotations:
+          summary: "Unusual login rate detected"
+          description: "Login requests rate is {{ $value | humanize }}/s - possible brute force attack"
+
+      - alert: TaskQueueBacklog
+        expr: sum(redis_stream_pending_entries) > 1000
+        for: 5m
+        labels:
+          severity: critical
+          service: travelmaster-backend
+        annotations:
+          summary: "Task queue backlog detected"
+          description: "Redis Stream has {{ $value | humanize }} pending entries - processing may be delayed"

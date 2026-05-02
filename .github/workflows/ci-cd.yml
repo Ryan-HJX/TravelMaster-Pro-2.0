@@ -1,0 +1,226 @@
+name: TravelMaster CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  JAVA_VERSION: 21
+  MAVEN_CACHE: maven-repo
+  NODE_VERSION: 20
+
+jobs:
+  build:
+    name: Build & Unit Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ env.MAVEN_CACHE }}-${{ hashFiles('travel-master-backend/pom.xml') }}
+          restore-keys: |
+            ${{ env.MAVEN_CACHE }}-
+
+      - name: Build backend with Maven
+        run: cd travel-master-backend && mvn clean compile -q
+
+      - name: Run unit tests
+        run: cd travel-master-backend && mvn test -Dtest="*Test" -q
+
+      - name: Build frontend
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: travel-master-frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: cd travel-master-frontend && npm ci --silent
+
+      - name: Build frontend
+        run: cd travel-master-frontend && npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: travelmaster-build
+          path: |
+            travel-master-backend/target/*.jar
+            travel-master-frontend/dist/
+
+  contract-test:
+    name: API Contract Test
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ env.MAVEN_CACHE }}-${{ hashFiles('travel-master-backend/pom.xml') }}
+
+      - name: Run contract tests
+        run: cd travel-master-backend && mvn test -Dtest="*ContractTest" -q
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run OWASP Dependency-Check
+        uses: jeremylong/DependencyCheck-action@v4
+        with:
+          project: 'TravelMaster'
+          scanPath: 'travel-master-backend'
+          format: 'HTML'
+          out: 'reports'
+          failOnCVSS: 7
+
+      - name: Upload security report
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report
+          path: reports/
+
+  performance-test:
+    name: Performance Test
+    runs-on: ubuntu-latest
+    needs: [build, contract-test]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install k6
+        uses: grafana/k6-action@v0.3.0
+        with:
+          installOnly: true
+
+      - name: Run health check test
+        run: k6 run load-test/health-check.js
+        env:
+          BASE_URL: ${{ secrets.TEST_API_URL }}
+
+      - name: Run login stress test
+        run: k6 run --out json=results/login-stress.json load-test/login-stress.js
+        env:
+          BASE_URL: ${{ secrets.TEST_API_URL }}
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-results
+          path: results/
+
+  docker-build:
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: [build, contract-test, security-scan]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./travel-master-backend
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/travelmaster-backend:latest
+            ${{ secrets.DOCKER_USERNAME }}/travelmaster-backend:${{ github.sha }}
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./travel-master-frontend
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/travelmaster-frontend:latest
+            ${{ secrets.DOCKER_USERNAME }}/travelmaster-frontend:${{ github.sha }}
+
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Configure Kubernetes credentials
+        uses: azure/k8s-set-context@v4
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      - name: Deploy backend
+        run: |
+          kubectl set image deployment/travelmaster-backend travelmaster-backend=${{ secrets.DOCKER_USERNAME }}/travelmaster-backend:${{ github.sha }}
+          kubectl rollout status deployment/travelmaster-backend
+
+      - name: Deploy frontend
+        run: |
+          kubectl set image deployment/travelmaster-frontend travelmaster-frontend=${{ secrets.DOCKER_USERNAME }}/travelmaster-frontend:${{ github.sha }}
+          kubectl rollout status deployment/travelmaster-frontend
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods
+          kubectl get services
+
+  notify:
+    name: Notify Slack
+    runs-on: ubuntu-latest
+    needs: [deploy, performance-test]
+    if: always()
+    steps:
+      - name: Send notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow,job,took
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

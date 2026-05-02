@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: travelmaster-frontend
+  namespace: travelmaster
+  labels:
+    app: travelmaster-frontend
+spec:
+  type: ClusterIP
+  selector:
+    app: travelmaster-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
