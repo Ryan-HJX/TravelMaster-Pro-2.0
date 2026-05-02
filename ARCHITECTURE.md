@@ -65,7 +65,7 @@ graph TB
 
 ---
 
-## 2. AI 规划链路（7 段式 LangGraph 工作流）
+## 2. AI 规划链路（9 段式 LangGraph 工作流）
 
 ```mermaid
 graph LR
@@ -74,19 +74,23 @@ graph LR
     C --> D["4. 路线优化<br/>qwen3-plus + Amap MCP"]
     D --> E["5. 天气联动<br/>qwen3-plus + Amap MCP"]
     E --> F["6. 可执行性评分<br/>纯计算"]
-    F --> G["7. 行程渲染<br/>qwen3-plus"]
-    G --> H["END"]
+    F --> G["7. 资金建议<br/>qwen3-plus + Yingmi MCP"]
+    G --> H["8. 大交通规划<br/>qwen3-plus"]
+    H --> I["9. 行程渲染<br/>qwen3-plus"]
+    I --> J["END"]
 ```
 
 | 阶段 | 模型 | MCP 工具 | 输出 |
 |------|------|----------|------|
-| 意图解析 | qwen3-flash | — | TravelIntent (城市/天数/预算/兴趣/交通偏好) |
+| 意图解析 | qwen3-flash | — | TravelIntent (城市/天数/预算/兴趣/交通偏好/出发地/日期) |
 | 地理 Grounding | qwen3-plus | Amap 地理编码 | 城市中心坐标、核心区域、出发/结束点 |
 | POI 池构建 | qwen3-plus | Amap POI/周边搜索 | EnrichedPOI[] (带坐标) + FallbackPOI[] |
 | 路线优化 | qwen3-plus | Amap 路径规划 | RouteOption[] (驾车/公交/步行比选) |
-| 天气联动 | qwen3-plus | Amap 天气查询 | WeatherDay[] + 雨天室内切换 |
+| 天气联动 | qwen3-plus | Amap 天气查询 | WeatherDay[] + 雨天室内切换建议 |
 | 可执行性评分 | 纯计算 | — | PlanningScore (轻松/适中/紧凑/不可执行) |
-| 行程渲染 | qwen3-plus | — | StructuredItinerary (days/poi/transport/weather) |
+| 资金建议 | qwen3-plus | 盈米金融 MCP | FinanceSummary (预算分析/现金预留/流动性提醒) |
+| 大交通规划 | qwen3-plus | — | TransportPlan (往返航班/火车方案 + 成本估算) |
+| 行程渲染 | qwen3-plus | — | StructuredItinerary (days/poi/transport/weather/finance) |
 
 ### 模型降级策略
 
@@ -161,11 +165,15 @@ erDiagram
         VARCHAR task_id FK
         VARCHAR title
         TEXT summary
+        VARCHAR departure_city "2.0" 
+        DATE start_date "2.0"
+        DATE end_date "2.0"
         VARCHAR start_location "2.0"
         VARCHAR end_location "2.0"
         VARCHAR travel_mode_preference "2.0"
         TEXT weather_summary "2.0"
         TEXT finance_summary "2.0"
+        JSON transport_summary "2.0"
         VARCHAR planning_score "2.0"
         LONGTEXT rendered_markdown
         LONGTEXT structured_content
@@ -263,6 +271,15 @@ sequenceDiagram
     Bailian-->>Python: WeatherDay[]
 
     Python->>Python: 可执行性评分 (纯计算)
+    
+    Python->>Bailian: 资金建议 (qwen3-plus + Yingmi MCP)
+    Bailian->>Yingmi: 基金流动性查询
+    Yingmi-->>Bailian: T+0/T+1/T+N 信息
+    Bailian-->>Python: FinanceSummary JSON
+    
+    Python->>Bailian: 大交通规划 (qwen3-plus)
+    Bailian-->>Python: TransportPlan JSON (航班/火车方案)
+    
     Python->>Bailian: 行程渲染 (qwen3-plus)
     Bailian-->>Python: StructuredItinerary
 
@@ -370,7 +387,7 @@ sequenceDiagram
 |------|--------|------|
 | V1 | `V1__initial_schema.sql` | 初始数据库结构（用户、行程、社交等） |
 | V2 | `V2__add_mcp_trace.sql` | 添加 MCP Trace 字段（2.0 架构升级） |
-| V3 | `V3__add_footprint_table.sql` | 添加足迹地图表 |
+| V3 | `V3__add_intercity_transport.sql` | 添加大交通相关字段（出发地、日期、往返方案） |
 | V4 | `V4__fix_cascade_delete.sql` | 修复外键约束，添加 ON DELETE CASCADE |
 
 ### 级联删除策略

@@ -129,11 +129,16 @@ src/
 │   └── state.py                            # 📋 Agent状态定义
 │
 ├── planner/
-│   └── stages/                             # 📍 规划各阶段
-│       ├── intent_parser.py               # 意图解析
-│       ├── poi_selector.py                # 景点选择
-│       ├── route_optimizer.py             # 路线优化
-│       └── renderer.py                    # 结果渲染
+│   └── stages/                             # 📍 规划各阶段（9段式工作流）
+│       ├── intent_parser.py               # 1. 意图解析（提取出发地、日期等）
+│       ├── geo_grounder.py                # 2. 地理 Grounding（高德 MCP）
+│       ├── poi_selector.py                # 3. 景点选择（高德 MCP）
+│       ├── route_optimizer.py             # 4. 路线优化（高德 MCP）
+│       ├── weather_adjuster.py            # 5. 天气联动（高德 MCP）
+│       ├── scoring.py                     # 6. 可执行性评分
+│       ├── finance_advisor.py             # 7. 资金建议（盈米 MCP）
+│       ├── transport_planner.py           # 8. 大交通规划（往返航班/火车）
+│       └── renderer.py                    # 9. 结果渲染（JSON + Markdown）
 │
 ├── llm/
 │   ├── bailian_client.py                  # 🤖 阿里云百炼LLM客户端
@@ -164,13 +169,14 @@ travel-master-frontend/
 │   │   └── SettingsPage.tsx               # 设置页面
 │   │
 │   ├── components/                        # 🧩 可复用组件
-│   │   ├── PlannerInput.tsx              # 行程规划输入表单
+│   │   ├── PlannerInput.tsx              # 行程规划输入表单（含日期自动计算）
 │   │   ├── ItineraryViewer.tsx           # 行程查看器
-│   │   ├── ItineraryMapView.tsx          # 行程地图展示
+│   │   ├── ItineraryMapView.tsx          # 行程地图展示（POI标记 + 路线绘制）
 │   │   ├── CityMap.tsx                   # 城市地图
-│   │   ├── ChinaMap.tsx                  # 中国地图（足迹）
+│   │   ├── ChinaMap.tsx                  # 中国地图（足迹，34个省级行政区）
 │   │   ├── HistoryList.tsx               # 历史记录列表
-│   │   └── TravelBudgetAdvisor.tsx       # 预算建议组件
+│   │   ├── RouteAlternatives.tsx         # 路线比选（多交通方式）
+│   │   └── TravelBudgetAdvisor.tsx       # 预算建议组件（盈米 MCP）
 │   │
 │   ├── hooks/                             # 🪝 自定义Hooks
 │   │   ├── useTravelPlanner.ts           # 行程规划Hook
@@ -307,10 +313,12 @@ public class AuthService {
 
 | 功能 | 前端调用位置 | 前端API方法 | 后端Controller | 后端URL | 请求方法 |
 |------|-------------|------------|----------------|---------|---------|
-| 创建行程 | `PlannerInput.tsx` | `api.createItinerary()` | `ItineraryController.java` | `/api/itineraries` | POST |
-| 获取行程列表 | `DashboardPage.tsx` | `api.getItineraries()` | `ItineraryController.java` | `/api/itineraries` | GET |
-| 获取行程详情 | `ItineraryDetailPage.tsx` | `api.getItinerary(id)` | `ItineraryController.java` | `/api/itineraries/{id}` | GET |
-| AI生成行程 | `useTravelPlanner.ts` | SSE流式请求 | `ItineraryController.java` | `/api/itineraries/generate` | POST (SSE) |
+| 创建行程 | `PlannerInput.tsx` | `api.createItinerary()` | `ItineraryTaskController.java` | `/api/itinerary-tasks` | POST |
+| 获取行程列表 | `DashboardPage.tsx` | `api.getItineraries()` | `ItineraryTaskController.java` | `/api/itineraries` | GET |
+| 获取行程详情 | `ItineraryDetailPage.tsx` | `api.getItinerary(id)` | `ItineraryTaskController.java` | `/api/itineraries/{id}` | GET |
+| 删除行程 | `ItineraryDetailPage.tsx` | `api.deleteItinerary(id)` | `ItineraryTaskController.java` | `/api/itineraries/{id}` | DELETE |
+| AI生成行程 | `useTravelPlanner.ts` | SSE流式请求 | `ItineraryTaskController.java` | `/api/itinerary-tasks` | POST (SSE) |
+| 发布行程 | `ItineraryDetailPage.tsx` | `api.publishItinerary()` | `ItineraryTaskController.java` | `/api/itineraries/{id}/publish` | POST |
 
 **AI行程生成完整流程（最复杂的功能）：**
 

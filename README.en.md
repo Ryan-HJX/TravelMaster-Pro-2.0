@@ -4,10 +4,11 @@
 An intelligent travel social platform driven by cloud AI, featuring dynamic itinerary planning with real geographic constraints. Built with Java Spring Boot + Python FastAPI + Alibaba Cloud Bailian MCP.
 
 #### Key Features
-- **AI Itinerary Planning**: 7-stage LangGraph workflow with qwen3-plus/flash models
+- **AI Itinerary Planning**: 9-stage LangGraph workflow with qwen3-plus/flash models
 - **MCP Tool Integration**: Amap Maps (geocoding/POI/routing/weather) + Yingmi Finance (budget planning)
+- **Intercity Transport Planning**: Round-trip flight/train recommendations with cost estimation
 - **Real-time Progress Tracking**: Redis-based progress updates with WebSocket notifications
-- **Footprint Map**: ECharts-powered provincial-level map covering 34 administrative regions
+- **Footprint Map**: ECharts-powered provincial-level map covering 34 administrative regions with batch operations
 - **Social Features**: Posts, likes, favorites, comments, follows with two-tier caching
 - **Model Fallback**: Cloud-first strategy with local Ollama fallback
 
@@ -16,7 +17,7 @@ An intelligent travel social platform driven by cloud AI, featuring dynamic itin
 | Layer | Technology |
 |-------|-----------|
 | **Java Backend** | Spring Boot 3.2 · Spring Security · JPA · Flyway · WebSocket |
-| **Python AI** | FastAPI · LangGraph (7-Node) · Bailian Responses API · MCP |
+| **Python AI** | FastAPI · LangGraph (9-Node) · Bailian Responses API · MCP |
 | **Cloud Models** | qwen3-plus (main reasoning) · qwen3-flash (lightweight extraction) |
 | **Local Fallback** | Ollama gemma4:e2b |
 | **Data** | MySQL 8.0 · Redis 7 (Stream / Cache / Lock / Rate Limit) |
@@ -64,10 +65,10 @@ cd travel-master-frontend && npm install && npm run dev
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed system design, including:
 - Layered architecture diagram
-- 7-stage AI planning workflow
-- ER diagram
+- 9-stage AI planning workflow (intent → geo grounding → POI selection → route optimization → weather adjustment → scoring → finance advice → transport planning → rendering)
+- ER diagram with intercity transport fields
 - Sequence diagrams
-- MCP toolchain
+- MCP toolchain (Amap Maps + Yingmi Finance)
 - Caching & rate limiting strategies
 - Database migration history
 

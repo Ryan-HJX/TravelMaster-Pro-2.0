@@ -82,7 +82,7 @@
 | `ranking` | 排行榜 | Redis Sorted Set · Caffeine + Redis 两级缓存 |
 | `analytics` | 运营报表 | 聚合 SQL · 转化漏斗 · 目的地统计 |
 | `ai-planner` | AI 行程规划 (Python) | 百炼 qwen3 · Amap MCP · 盈米 MCP · 9 段式 LangGraph · 进度追踪 |
-| `footprint` | 足迹地图 | ECharts 省级地图 · 34 个省级行政区 · 自动联动计算 |
+| `footprint` | 足迹地图 | ECharts 省级地图 · 34 个省级行政区 · 自动联动计算 · 支持手动标记 |
 
 ---
 
@@ -90,15 +90,15 @@
 
 | 阶段 | 模型 | MCP 工具 | 输出 |
 |------|------|----------|------|
-| 1. 意图解析 | qwen3-flash | — | 城市/天数/预算/兴趣/交通偏好 |
-| 2. 地理 Grounding | qwen3-plus | Amap 地理编码 | 城市中心坐标、核心区域 |
-| 3. POI 池构建 | qwen3-plus | Amap POI/周边搜索 | 分类 POI (景点/餐饮/备选) |
-| 4. 路线优化 | qwen3-plus | Amap 路径规划 | 多交通方式比选 |
-| 5. 天气联动 | qwen3-plus | Amap 天气 | 天气预报 + 室内/外切换 |
+| 1. 意图解析 | qwen3-flash | — | 城市/天数/预算/兴趣/交通偏好/出发地/日期 |
+| 2. 地理 Grounding | qwen3-plus | Amap 地理编码 | 城市中心坐标、核心区域、起终点 |
+| 3. POI 池构建 | qwen3-plus | Amap POI/周边搜索 | 分类 POI (景点/餐饮/备选) + 坐标 |
+| 4. 路线优化 | qwen3-plus | Amap 路径规划 | 多交通方式比选 (驾车/公交/步行) |
+| 5. 天气联动 | qwen3-plus | Amap 天气 | 天气预报 + 室内/外切换建议 |
 | 6. 可执行性评分 | 纯计算 | — | 轻松/适中/紧凑/不可执行 |
-| 7. 资金建议 | qwen3-plus | 盈米金融 MCP | 预算分析 + 流动性提醒 |
-| 8. 大交通规划 | qwen3-plus | — | 往返交通方案（飞机/火车） |
-| 9. 行程渲染 | qwen3-plus | — | 结构化 JSON + Markdown |
+| 7. 资金建议 | qwen3-plus | 盈米金融 MCP | 预算分析 + 流动性提醒 + 现金预留 |
+| 8. 大交通规划 | qwen3-plus | — | 往返交通方案（飞机/火车）+ 成本估算 |
+| 9. 行程渲染 | qwen3-plus | — | 结构化 JSON + Markdown + 地图数据 |
 
 ### 模型降级策略
 
@@ -129,20 +129,28 @@
 
 ---
 
-## 旅行资金安排助手
+### 旅行资金安排助手
 
 基于盈米金融 MCP 的旅行资金规划辅助功能：
 
 | 输出内容 | 说明 |
 |---------|------|
-| 预算分析 | 总预算、日均消费、预算级别 |
-| 现金预留建议 | 推荐预留金额 + 应急金 |
-| 赎回时点提醒 | T+0/T+1/T+N 流动性提醒 |
+| 预算分析 | 总预算、日均消费、预算级别评估 |
+| 现金预留建议 | 推荐预留金额 + 应急金 + 合理性说明 |
+| 赎回时点提醒 | T+0/T+1/T+N 流动性提醒 + 假期前截止日 |
 | 风险提示 | 免责声明（不构成投资建议） |
+| 数据来源标注 | 明确标注信息来源为盈米金融 MCP |
+
+**合规边界**：
+- ✅ 仅做信息展示与资金安排辅助
+- ✅ 不构成投资建议
+- ❌ 不直接做申购/赎回操作
+- ❌ 不做收益承诺
+- 💡 用户主动点击开启，非自动触发
 
 ---
 
-## 足迹地图
+### 足迹地图
 
 基于 ECharts 的中国省级行政区可视化地图：
 
@@ -153,6 +161,8 @@
 | **多数据源容错** | 尝试阿里云 DataV v3/v2 API，加载失败显示友好提示 |
 | **降级策略** | 即使地图加载失败，仍可使用右侧省份列表手动标记 |
 | **实时交互** | 点击省份切换访问状态，支持搜索过滤 |
+| **批量操作** | 支持"清空全部"和"全部点亮"快捷操作 |
+| **进度统计** | 实时显示探索进度百分比和已访问省份数量 |
 
 ---
 
@@ -233,13 +243,16 @@ cd travel-master-frontend && npm install && npm run dev
 ### 行程任务
 | Method | Path | 说明 |
 |--------|------|------|
-| POST | `/api/itinerary-tasks` | 创建 AI 行程生成任务 |
-| GET | `/api/itinerary-tasks/{taskId}` | 查询任务状态与结果 |
+| POST | `/api/itinerary-tasks` | 创建 AI 行程生成任务（支持幂等键） |
+| GET | `/api/itinerary-tasks/{taskId}` | 查询任务状态与结果（含实时进度） |
+| GET | `/api/itineraries` | 获取用户历史行程列表 |
+| GET | `/api/itineraries/{id}` | 获取单个行程详情 |
+| DELETE | `/api/itineraries/{id}` | 删除行程 |
 
 ### 社交
 | Method | Path | 说明 |
 |--------|------|------|
-| POST | `/api/itineraries/{id}/publish` | 发布行程为帖子 |
+| POST | `/api/itineraries/{id}/publish` | 发布行程为帖子（可自定义标题和简介） |
 | GET | `/api/feed` | 获取社交 Feed |
 | POST | `/api/posts/{id}/like` | 点赞/取消点赞 |
 | POST | `/api/posts/{id}/favorite` | 收藏/取消收藏 |
@@ -313,15 +326,15 @@ TravelMaster/
 │   │   └── model_router.py      # 模型路由（云端/本地降级）
 │   ├── mcp/                     # MCP 工具注册表
 │   ├── planner/stages/          # 9 段式规划引擎
-│   │   ├── intent_parser.py     # 1. 意图解析
-│   │   ├── geo_grounder.py      # 2. 地理 Grounding
-│   │   ├── poi_selector.py      # 3. POI 池构建
-│   │   ├── route_optimizer.py   # 4. 路线优化
-│   │   ├── weather_adjuster.py  # 5. 天气联动
+│   │   ├── intent_parser.py     # 1. 意图解析（提取出发地、日期等）
+│   │   ├── geo_grounder.py      # 2. 地理 Grounding（高德 MCP）
+│   │   ├── poi_selector.py      # 3. POI 池构建（高德 MCP）
+│   │   ├── route_optimizer.py   # 4. 路线优化（高德 MCP）
+│   │   ├── weather_adjuster.py  # 5. 天气联动（高德 MCP）
 │   │   ├── scoring.py           # 6. 可执行性评分
-│   │   ├── finance_advisor.py   # 7. 资金建议
-│   │   ├── transport_planner.py # 8. 大交通规划
-│   │   └── renderer.py          # 9. 行程渲染
+│   │   ├── finance_advisor.py   # 7. 资金建议（盈米 MCP）
+│   │   ├── transport_planner.py # 8. 大交通规划（往返航班/火车）
+│   │   └── renderer.py          # 9. 行程渲染（JSON + Markdown）
 │   ├── services/                # 核心服务
 │   │   ├── travel_service.py    # 旅行服务主逻辑
 │   │   └── progress_tracker.py  # 进度追踪器
@@ -342,12 +355,12 @@ TravelMaster/
 │   │   │   ├── ItineraryDetailPage.tsx # 行程详情
 │   │   │   └── SettingsPage.tsx # 设置页
 │   │   ├── components/          # 可复用组件
-│   │   │   ├── PlannerInput.tsx # 行程规划输入表单
+│   │   │   ├── PlannerInput.tsx # 行程规划输入表单（含日期自动计算）
 │   │   │   ├── ItineraryViewer.tsx # 行程查看器
-│   │   │   ├── ItineraryMapView.tsx # 高德地图展示
-│   │   │   ├── RouteAlternatives.tsx # 路线比选
-│   │   │   ├── ChinaMap.tsx     # 足迹地图（省级）
-│   │   │   └── TravelBudgetAdvisor.tsx # 资金安排助手
+│   │   │   ├── ItineraryMapView.tsx # 高德地图展示（POI 标记 + 路线绘制）
+│   │   │   ├── RouteAlternatives.tsx # 路线比选（多交通方式）
+│   │   │   ├── ChinaMap.tsx     # 足迹地图（省级，34个行政区）
+│   │   │   └── TravelBudgetAdvisor.tsx # 资金安排助手（盈米 MCP）
 │   │   ├── hooks/               # 自定义 Hooks
 │   │   │   ├── useTravelPlanner.ts # 行程规划 Hook（SSE）
 │   │   │   └── useNotificationWs.ts # WebSocket 通知

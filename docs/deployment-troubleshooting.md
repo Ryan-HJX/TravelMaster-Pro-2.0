@@ -49,6 +49,10 @@ private TaskStatus status;
 | `intent` | `intent_parser` | `intent` |
 | `geo_grounding` | `geo_grounder` | `geo_grounding` |
 | `poi_pool` | `poi_selector` | `enriched_pois` |
+| `route_optimization` | `route_optimizer` | `route_options` |
+| `weather_adjustment` | `weather_adjuster` | `weather_forecast` |
+| `finance_advice` | `finance_advisor` | `finance_summary` |
+| `transport_planning` | `transport_planner` | `transport_plan` |
 | `render` | `renderer` | `plan` |
 
 ---
@@ -118,7 +122,7 @@ Python 终端持续输出 `bailian call failed, falling back to ollama`，且本
 2. **配置未重载**：修改 `.env` 后，如果没有彻底重启 Python 进程（关闭终端重开），`pydantic-settings` 可能仍在使用旧的环境变量或默认值。
 
 ### 解决方案
-*   **使用标准模型名**：在 `.env` 和 `src/config/settings.py` 中统一使用 `qwen-turbo` 和 `qwen-plus`。
+*   **使用标准模型名**：在 `.env` 和 `src/config/settings.py` 中统一使用 `qwen-turbo` 和 `qwen-plus`（或项目配置的 `qwen3-plus` / `qwen3-flash`）。
 *   **双重保险**：确保 `settings.py` 中的默认值也是正确的，防止 `.env` 读取失败时回退到错误模型。
 *   **彻底重启**：修改配置后，务必关闭当前终端窗口并重新运行 `uvicorn`。
 
