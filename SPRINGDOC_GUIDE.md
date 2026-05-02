@@ -225,15 +225,17 @@ springdoc.group-configs[0].packages-to-scan=com.travelmaster.auth
 
 ## 📊 当前已标注的模块
 
-| 模块 | Controller | 状态 |
-|------|-----------|------|
-| 认证模块 | AuthController | ✅ 已标注 |
-| 行程任务模块 | ItineraryTaskController | ✅ 已标注 |
-| 用户模块 | UserController | ⏳ 待标注 |
-| 社交模块 | SocialController | ⏳ 待标注 |
-| 通知模块 | NotificationController | ⏳ 待标注 |
-| 排行榜模块 | RankingController | ⏳ 待标注 |
-| 数据分析模块 | AnalyticsController | ⏳ 待标注 |
+| 模块 | Controller | 接口数量 | 状态 |
+|------|-----------|---------|------|
+| 认证模块 | AuthController | 3 | ✅ 已完成 |
+| 用户模块 | UserController | 2 | ✅ 已完成 |
+| 行程任务模块 | ItineraryTaskController | 2+ | ✅ 已完成 |
+| 社交模块 | SocialController | 7 | ✅ 已完成 |
+| 通知模块 | NotificationController | 2 | ✅ 已完成 |
+| 排行榜模块 | RankingController | 2 | ✅ 已完成 |
+| 数据分析模块 | AnalyticsController | 3 | ✅ 已完成 |
+
+**总计**: 7 个模块，21+ 个接口已全部标注完成！🎉
 
 ---
 
@@ -296,13 +298,22 @@ public void debug() { ... }
 
 ## 🎯 下一步计划
 
+### ✅ 已完成
 1. ✅ 集成 SpringDoc OpenAPI 依赖
 2. ✅ 创建 OpenAPI 配置类
 3. ✅ 为核心 Controller 添加注解
-4. ⏳ 为剩余 Controller 添加注解
-5. ⏳ 添加 DTO 字段的详细描述
-6. ⏳ 配置安全认证（JWT Bearer）
-7. ⏳ 编写接口使用示例
+4. ✅ 为所有 Controller 添加注解（7个模块，21+接口）
+5. ✅ 编写接口使用指南
+
+### 🔄 进行中
+6. ⏳ 为 DTO 类添加字段描述（使用 `@Schema` 注解）
+7. ⏳ 配置接口分组（按模块分开显示）
+8. ⏳ 添加更多示例数据
+
+### 📅 长期规划
+9. ⏳ 导出 OpenAPI JSON 导入到 Apifox
+10. ⏳ 利用 Apifox 的 Mock 功能加速前端开发
+11. ⏳ 设置自动化测试流程
 
 ---
 
