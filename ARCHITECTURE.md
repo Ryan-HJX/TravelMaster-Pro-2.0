@@ -705,3 +705,119 @@ async def create(
   <p>地图加载中... 请检查网络连接</p>
 </div>
 ```
+
+---
+
+## 16. 测试架构
+
+### 16.1 测试分层策略
+
+```mermaid
+graph TB
+    subgraph 测试金字塔
+        unit["单元测试<br/>JUnit 5 + Mockito"]
+        integration["集成测试<br/>Spring Test + H2"]
+        contract["契约测试<br/>Rest-Assured"]
+        load["性能测试<br/>k6 + JMeter"]
+    end
+    
+    unit --> integration
+    integration --> contract
+    contract --> load
+```
+
+### 16.2 测试覆盖矩阵
+
+| 模块 | 单元测试 | 集成测试 | 契约测试 | 性能测试 |
+|------|---------|---------|---------|---------|
+| Auth | ✅ | ✅ | ✅ | ✅ |
+| User | ✅ | ✅ | ✅ | - |
+| Itinerary | ✅ | ✅ | ✅ | ✅ |
+| Social | ✅ | ✅ | ✅ | ✅ |
+| Notification | ✅ | ✅ | - | - |
+| Ranking | ✅ | ✅ | - | - |
+| Analytics | ✅ | ✅ | - | - |
+
+### 16.3 测试目录结构
+
+```
+travel-master-backend/src/test/java/com/travelmaster/
+├── auth/                # 认证模块测试
+│   ├── AuthServiceTest.java
+│   └── AuthControllerTest.java
+├── contract/            # API 契约测试
+│   ├── AuthContractTest.java
+│   └── UserContractTest.java
+├── itinerary/           # 行程模块测试
+│   ├── ItineraryTaskServiceTest.java
+│   └── ItineraryControllerTest.java
+├── social/              # 社交模块测试
+│   └── SocialServiceTest.java
+├── user/                # 用户模块测试
+│   ├── UserServiceTest.java
+│   └── UserControllerTest.java
+├── notification/        # 通知模块测试
+│   └── NotificationServiceTest.java
+└── security/            # 安全模块测试
+    └── JwtTokenServiceTest.java
+```
+
+### 16.4 CI/CD 流水线
+
+```mermaid
+graph LR
+    A["代码提交"] --> B["代码格式检查"]
+    B --> C["单元测试"]
+    C --> D["SonarQube 分析"]
+    D --> E["依赖安全检查"]
+    E --> F{"PR 检查通过？"}
+    F -->|是| G["构建 Docker 镜像"]
+    F -->|否| H["通知开发者修复"]
+    G --> I["性能测试"]
+    I --> J["K8s 部署"]
+    J --> K["监控告警配置"]
+```
+
+### 16.5 CI/CD 工作流配置
+
+| 工作流 | 触发条件 | 执行步骤 |
+|--------|----------|----------|
+| `ci-cd.yml` | push/PR 到 main/develop | 构建 → 单元测试 → 安全扫描 → 性能测试 → Docker 构建 → K8s 部署 |
+| `pr-check.yml` | PR 到 main/develop | 代码格式检查 → SonarQube 分析 → 依赖安全检查 |
+
+### 16.6 监控告警体系
+
+```mermaid
+graph LR
+    A["Prometheus"] --> B["Grafana Dashboard"]
+    A --> C["Alertmanager"]
+    C --> D["Slack 通知"]
+    C --> E["邮件通知"]
+    
+    subgraph 监控指标
+        F["HTTP 请求"]
+        G["JVM 内存"]
+        H["数据库连接"]
+        I["Redis Stream"]
+    end
+    
+    F --> A
+    G --> A
+    H --> A
+    I --> A
+```
+
+### 16.7 告警规则
+
+| 告警名称 | 严重级别 | 触发条件 |
+|----------|----------|----------|
+| HighErrorRate | critical | 5xx 错误率 > 5% |
+| HighLatency | warning | P95 延迟 > 2s |
+| ServiceUnavailable | critical | 服务宕机 > 30s |
+| HighMemoryUsage | warning | JVM 堆内存 > 85% |
+| HighCPUUsage | warning | CPU 使用率 > 80% |
+| DatabaseConnectionPoolHigh | warning | 数据库连接池 > 80% |
+| RedisDown | critical | Redis 不可用 |
+| MySQLDown | critical | MySQL 不可用 |
+| LoginRateAnomaly | warning | 登录请求 > 100/s |
+| TaskQueueBacklog | critical | Redis Stream 积压 > 1000 |

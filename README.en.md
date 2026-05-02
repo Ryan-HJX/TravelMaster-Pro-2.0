@@ -61,6 +61,48 @@ cd .. && pip install -r requirements.txt && python main.py
 cd travel-master-frontend && npm install && npm run dev
 ```
 
+#### Testing
+
+```bash
+# Java Unit Tests + Integration Tests + Contract Tests
+cd travel-master-backend && mvn test
+
+# Python Tests
+python -m pytest src/tests -q
+
+# k6 Load Testing
+k6 run load-test/login-stress.js           # Login stress test
+k6 run load-test/feed-interaction.js      # Feed browsing + interactions
+k6 run load-test/task-submit.js           # Task submission + rate limiting
+k6 run load-test/api-comprehensive.js     # Comprehensive API load test
+k6 run load-test/health-check.js          # Health check load test
+
+# JMeter Testing
+jmeter -n -t load-test/TravelMaster-Perf-Test.jmx -l results/jmeter-results.jtl
+```
+
+**Test Coverage:**
+
+| Test Type | Tools | Coverage |
+|-----------|-------|----------|
+| Unit Tests | JUnit 5 + Mockito | Auth, User, Itinerary, Social, Security modules |
+| Integration Tests | Spring Test + H2 | Database operations, transaction handling |
+| Contract Tests | Rest-Assured | API request/response contract verification |
+| Load Testing | k6 + JMeter | Login, Feed, Task submission scenarios |
+| Monitoring | Prometheus + Grafana | HTTP requests, JVM, Database, Redis metrics |
+
+**CI/CD Pipeline:**
+
+| Workflow | Trigger | Main Steps |
+|----------|---------|------------|
+| `ci-cd.yml` | push/PR to main/develop | Build → Unit Tests → Security Scan → Performance Test → Docker Build → K8s Deployment |
+| `pr-check.yml` | PR to main/develop | Code Format Check → SonarQube Analysis → Dependency Security Check |
+
+**Monitoring:**
+- **Prometheus**: Metrics collection (HTTP requests, JVM memory, database connections, Redis Stream)
+- **Grafana**: Visualization dashboard (request volume, error rate, P95 latency, memory usage)
+- **Alertmanager**: Alert notifications (Slack, Email)
+
 #### Architecture
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed system design, including:
