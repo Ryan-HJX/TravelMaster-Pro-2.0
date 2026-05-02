@@ -205,6 +205,20 @@ cd .. && pip install -r requirements.txt && python main.py
 cd travel-master-frontend && npm install && npm run dev
 ```
 
+### 📚 API 文档（SpringDoc OpenAPI）
+
+项目已集成 **SpringDoc OpenAPI**，自动生成交互式 API 文档：
+
+- **Swagger UI**: http://localhost:8080/swagger-ui.html
+- **OpenAPI JSON**: http://localhost:8080/v3/api-docs
+- **使用指南**: [SPRINGDOC_GUIDE.md](./SPRINGDOC_GUIDE.md)
+
+**功能特性**：
+- ✅ 在线查看和测试所有 API 接口
+- ✅ 支持 JWT Token 认证
+- ✅ 导出 OpenAPI 文档（可导入 Apifox/Postman）
+- ✅ 代码即文档，自动同步更新
+
 ---
 
 ## API 列表

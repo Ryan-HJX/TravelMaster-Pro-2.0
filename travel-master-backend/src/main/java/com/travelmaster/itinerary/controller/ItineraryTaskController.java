@@ -7,6 +7,9 @@ import com.travelmaster.itinerary.dto.TaskResponse;
 import com.travelmaster.itinerary.service.ItineraryTaskService;
 import com.travelmaster.security.AuthenticatedUser;
 import com.travelmaster.social.dto.PostResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -18,8 +21,14 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * 行程任务控制器
+ * 
+ * 提供 AI 行程生成任务的创建、查询，以及行程发布功能
+ */
 @RestController
 @RequestMapping("/api")
+@Tag(name = "行程任务模块", description = "AI 行程规划任务管理、行程发布相关接口")
 public class ItineraryTaskController {
     private final ItineraryTaskService itineraryTaskService;
 
@@ -28,10 +37,16 @@ public class ItineraryTaskController {
     }
 
     @PostMapping("/itinerary-tasks")
-    public ApiResponse<TaskResponse> createTask(@AuthenticationPrincipal AuthenticatedUser currentUser,
-                                                @Valid @RequestBody CreateTaskRequest request,
-                                                @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
-                                                HttpServletRequest httpRequest) {
+    @Operation(
+        summary = "创建 AI 行程生成任务",
+        description = "提交旅行需求，后端将异步调用 Python AI 服务生成行程。支持幂等性控制（Idempotency-Key）。"
+    )
+    public ApiResponse<TaskResponse> createTask(
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            @Valid @RequestBody CreateTaskRequest request,
+            @Parameter(description = "幂等性 Key，防止重复提交", example = "uuid-v4-string")
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            HttpServletRequest httpRequest) {
         System.out.println(">>> [FRONTEND REQUEST] Received /api/itinerary-tasks for user: " + currentUser.userId() + " input: " + request.userInput());
         return ApiResponse.success(itineraryTaskService.createTask(
                 currentUser.userId(),
@@ -42,8 +57,14 @@ public class ItineraryTaskController {
     }
 
     @GetMapping("/itinerary-tasks/{taskId}")
-    public ApiResponse<TaskResponse> getTask(@AuthenticationPrincipal AuthenticatedUser currentUser,
-                                             @PathVariable String taskId) {
+    @Operation(
+        summary = "查询行程任务状态",
+        description = "根据任务 ID 查询 AI 行程生成的进度和结果。前端应轮询此接口直到任务完成。"
+    )
+    public ApiResponse<TaskResponse> getTask(
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            @Parameter(description = "任务 ID", example = "task-123456")
+            @PathVariable String taskId) {
         return ApiResponse.success(itineraryTaskService.getTask(currentUser.userId(), taskId));
     }
 
