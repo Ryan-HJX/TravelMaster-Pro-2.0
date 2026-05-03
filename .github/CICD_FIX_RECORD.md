@@ -178,16 +178,63 @@ deploy:
 
 # After
 docker-build:
-  if: github.ref == 'refs/heads/master' && secrets.DOCKER_USERNAME != '' && secrets.DOCKER_PASSWORD != ''
+  if: github.ref == 'refs/heads/master'
+  env:
+    DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+    DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  steps:
+    - name: Login to Docker Hub
+      if: env.DOCKER_USERNAME != '' && env.DOCKER_PASSWORD != ''
+    - name: Build and push backend
+      if: env.DOCKER_USERNAME != '' && env.DOCKER_PASSWORD != ''
+      with:
+        tags: |
+          ${{ env.DOCKER_USERNAME }}/travelmaster-backend:latest
 
 deploy:
-  if: github.ref == 'refs/heads/master' && secrets.KUBE_CONFIG != ''
+  if: github.ref == 'refs/heads/master'
+  env:
+    KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+    DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
 ```
 
 **优势**:
 - 允许 CI/CD 在没有生产环境 credentials 的情况下运行
 - 核心测试（build + contract-test）不受影响
 - 可以在开发分支上验证代码质量，无需部署权限
+- 使用 env 变量中转 secrets，避免 YAML 解析问题
+
+---
+
+### 10. ✅ Docker 镜像标签格式错误
+
+**问题**: `ERROR: invalid tag "/travelmaster-backend:latest": invalid reference format`  
+**原因**: `DOCKER_USERNAME` 为空，导致标签缺少用户名部分  
+**修复**: 
+1. 为 Docker 构建步骤添加条件判断
+2. 使用 `env.DOCKER_USERNAME` 代替 `secrets.DOCKER_USERNAME`
+
+```yaml
+# Before (错误)
+- name: Build and push backend
+  uses: docker/build-push-action@v5
+  with:
+    tags: |
+      ${{ secrets.DOCKER_USERNAME }}/travelmaster-backend:latest  # 如果 secret 为空，变成 /travelmaster-backend
+
+# After (正确)
+- name: Build and push backend
+  if: env.DOCKER_USERNAME != '' && env.DOCKER_PASSWORD != ''  # 只有配置了 credentials 才执行
+  uses: docker/build-push-action@v5
+  with:
+    tags: |
+      ${{ env.DOCKER_USERNAME }}/travelmaster-backend:latest  # 使用 env 变量
+```
+
+**关键点**:
+- Docker 镜像标签格式必须是 `username/repository:tag`
+- 如果 username 为空，会导致 `/repository:tag` 的无效格式
+- 必须在构建步骤添加条件判断，防止在缺少 credentials 时执行
 
 ---
 
