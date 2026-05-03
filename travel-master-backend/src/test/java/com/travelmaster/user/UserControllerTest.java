@@ -50,7 +50,7 @@ class UserControllerTest {
     @Test
     @DisplayName("GET /api/users/me - success returns profile")
     void getProfile_success() throws Exception {
-        when(userService.getCurrentProfile(anyString())).thenReturn(MOCK_PROFILE);
+        when(userService.getCurrentProfile(nullable(String.class))).thenReturn(MOCK_PROFILE);
 
         mockMvc.perform(get("/api/users/me")
                         .header("X-User-Id", "user-001"))
@@ -63,7 +63,7 @@ class UserControllerTest {
     @Test
     @DisplayName("PUT /api/users/me - success updates profile")
     void updateProfile_success() throws Exception {
-        when(userService.updateProfile(anyString(), any(UpdateUserProfileRequest.class))).thenReturn(MOCK_PROFILE);
+        when(userService.updateProfile(nullable(String.class), any(UpdateUserProfileRequest.class))).thenReturn(MOCK_PROFILE);
 
         String body = """
                 {

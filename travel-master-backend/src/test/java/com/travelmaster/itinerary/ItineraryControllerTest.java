@@ -59,7 +59,7 @@ class ItineraryControllerTest {
     @Test
     @DisplayName("POST /api/itinerary-tasks - success creates task")
     void createTask_success() throws Exception {
-        when(itineraryTaskService.createTask(anyString(), any(CreateTaskRequest.class), anyString(), anyString())).thenReturn(MOCK_TASK);
+        when(itineraryTaskService.createTask(nullable(String.class), any(CreateTaskRequest.class), nullable(String.class), anyString())).thenReturn(MOCK_TASK);
 
         String body = """
                 {
@@ -85,7 +85,7 @@ class ItineraryControllerTest {
     @Test
     @DisplayName("GET /api/itinerary-tasks/{taskId} - success returns task")
     void getTask_success() throws Exception {
-        when(itineraryTaskService.getTask(anyString(), anyString())).thenReturn(MOCK_TASK);
+        when(itineraryTaskService.getTask(nullable(String.class), anyString())).thenReturn(MOCK_TASK);
 
         mockMvc.perform(get("/api/itinerary-tasks/task-001")
                         .header("X-User-Id", "user-001"))
