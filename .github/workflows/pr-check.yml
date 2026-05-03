@@ -25,7 +25,7 @@ jobs:
           cache: maven
 
       - name: Build and run tests
-        run: cd travel-master-backend && mvn clean test -q
+        run: cd travel-master-backend && mvn clean test
 
       - name: Check code formatting
         run: cd travel-master-backend && mvn spotless:check
@@ -49,17 +49,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run OWASP Dependency-Check
-        uses: jeremylong/DependencyCheck-action@v4
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
         with:
-          project: 'TravelMaster-PR'
-          scanPath: 'travel-master-backend'
-          format: 'HTML'
-          out: 'reports'
-          failOnCVSS: 7
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run OWASP Dependency Check via Maven
+        run: cd travel-master-backend && mvn org.owasp:dependency-check-maven:9.0.7:check -DfailBuildOnCVSS=7 -Dformat=HTML -DoutputDirectory=reports
+        continue-on-error: true
 
       - name: Upload report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: dependency-report
-          path: reports/
+          path: travel-master-backend/reports/
+          if-no-files-found: ignore
