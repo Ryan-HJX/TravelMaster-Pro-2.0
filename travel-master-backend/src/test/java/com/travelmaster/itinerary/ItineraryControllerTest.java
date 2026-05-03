@@ -6,6 +6,7 @@ import com.travelmaster.itinerary.dto.CreateTaskRequest;
 import com.travelmaster.itinerary.dto.TaskResponse;
 import com.travelmaster.itinerary.entity.TaskStatus;
 import com.travelmaster.itinerary.service.ItineraryTaskService;
+import com.travelmaster.security.AuthenticatedUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,10 +15,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
@@ -54,6 +58,12 @@ class ItineraryControllerTest {
         mockMvc = MockMvcBuilders.standaloneSetup(itineraryTaskController).build();
         objectMapper = new ObjectMapper();
         objectMapper.findAndRegisterModules();
+        
+        // Setup security context with a mock authenticated user
+        AuthenticatedUser mockUser = new AuthenticatedUser("user-001");
+        UsernamePasswordAuthenticationToken authentication = 
+            new UsernamePasswordAuthenticationToken(mockUser, null, List.of());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 
     @Test
