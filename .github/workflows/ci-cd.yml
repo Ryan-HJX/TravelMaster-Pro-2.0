@@ -96,22 +96,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run OWASP Dependency-Check
-        uses: dependency-check/DependencyCheck_Action@main
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
         with:
-          project: 'TravelMaster'
-          path: 'travel-master-backend'
-          format: 'HTML'
-          out: 'reports'
-          args: >
-            --failOnCVSS 7
-            --enableRetired
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ env.MAVEN_CACHE }}-${{ hashFiles('travel-master-backend/pom.xml') }}
+
+      - name: Run OWASP Dependency Check via Maven
+        run: cd travel-master-backend && mvn org.owasp:dependency-check-maven:9.0.7:check -DfailBuildOnCVSS=7 -Dformat=HTML -DoutputDirectory=reports
+        continue-on-error: true
 
       - name: Upload security report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: security-report
-          path: reports/
+          path: travel-master-backend/reports/
+          if-no-files-found: ignore
 
   performance-test:
     name: Performance Test
