@@ -1,7 +1,6 @@
 package com.travelmaster.user;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.travelmaster.security.AuthenticatedUser;
 import com.travelmaster.user.controller.UserController;
 import com.travelmaster.user.dto.UpdateUserProfileRequest;
 import com.travelmaster.user.dto.UserProfileResponse;
@@ -15,8 +14,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -48,12 +45,6 @@ class UserControllerTest {
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(userController).build();
         objectMapper = new ObjectMapper();
-        
-        // Setup security context with a mock authenticated user
-        AuthenticatedUser mockUser = new AuthenticatedUser("user-001");
-        UsernamePasswordAuthenticationToken authentication = 
-            new UsernamePasswordAuthenticationToken(mockUser, null, List.of());
-        SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 
     @Test

@@ -43,13 +43,15 @@ public class ItineraryTaskController {
     )
     public ApiResponse<TaskResponse> createTask(
             @AuthenticationPrincipal AuthenticatedUser currentUser,
+            @RequestHeader(value = "X-User-Id", required = false) String userIdFromHeader,
             @Valid @RequestBody CreateTaskRequest request,
             @Parameter(description = "幂等性 Key，防止重复提交", example = "uuid-v4-string")
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             HttpServletRequest httpRequest) {
-        System.out.println(">>> [FRONTEND REQUEST] Received /api/itinerary-tasks for user: " + currentUser.userId() + " input: " + request.userInput());
+        String userId = currentUser != null ? currentUser.userId() : userIdFromHeader;
+        System.out.println(">>> [FRONTEND REQUEST] Received /api/itinerary-tasks for user: " + userId + " input: " + request.userInput());
         return ApiResponse.success(itineraryTaskService.createTask(
-                currentUser.userId(),
+                userId,
                 request,
                 idempotencyKey,
                 httpRequest.getRemoteAddr()
@@ -63,9 +65,11 @@ public class ItineraryTaskController {
     )
     public ApiResponse<TaskResponse> getTask(
             @AuthenticationPrincipal AuthenticatedUser currentUser,
+            @RequestHeader(value = "X-User-Id", required = false) String userIdFromHeader,
             @Parameter(description = "任务 ID", example = "task-123456")
             @PathVariable String taskId) {
-        return ApiResponse.success(itineraryTaskService.getTask(currentUser.userId(), taskId));
+        String userId = currentUser != null ? currentUser.userId() : userIdFromHeader;
+        return ApiResponse.success(itineraryTaskService.getTask(userId, taskId));
     }
 
     @GetMapping("/itineraries")
