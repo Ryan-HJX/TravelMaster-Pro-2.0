@@ -97,13 +97,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run OWASP Dependency-Check
-        uses: jeremylong/DependencyCheck-action@v4
+        uses: dependency-check/DependencyCheck_Action@v3.1.0
         with:
           project: 'TravelMaster'
-          scanPath: 'travel-master-backend'
+          path: 'travel-master-backend'
           format: 'HTML'
           out: 'reports'
-          failOnCVSS: 7
+          args: >
+            --failOnCVSS 7
+            --enableRetired
 
       - name: Upload security report
         uses: actions/upload-artifact@v4
