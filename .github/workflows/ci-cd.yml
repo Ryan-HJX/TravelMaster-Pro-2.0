@@ -51,7 +51,7 @@ jobs:
           cache-dependency-path: travel-master-frontend/package-lock.json
 
       - name: Install frontend dependencies
-        run: cd travel-master-frontend && npm ci --silent
+        run: cd travel-master-frontend && npm install --prefer-offline
 
       - name: Build frontend
         run: cd travel-master-frontend && npm run build
