@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import java.util.Map;
@@ -23,6 +24,7 @@ public class TravelMasterApplication {
     }
 
     @Bean
+    @Profile("!test")  // Only run in non-test environments
     public CommandLineRunner redisCheck(StringRedisTemplate redisTemplate, com.travelmaster.config.TravelMasterProperties properties) {
         return args -> {
             System.out.println(">>> [REDIS SELF-CHECK] Starting...");

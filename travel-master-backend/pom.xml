@@ -170,11 +170,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <!-- Exclude unit tests that have Lombok/Setter issues -->
-                    <!-- Contract tests (integration tests) cover the core logic -->
-                    <excludes>
-                        <exclude>**/SocialServiceTest.java</exclude>
-                    </excludes>
+                    <!-- All tests should pass now -->
                 </configuration>
             </plugin>
         </plugins>

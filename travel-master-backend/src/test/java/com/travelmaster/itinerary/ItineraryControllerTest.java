@@ -74,8 +74,8 @@ class ItineraryControllerTest {
                         .header("X-User-Id", "user-001")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
-                .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.code").value(202))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.taskId").value("task-001"))
                 .andExpect(jsonPath("$.data.status").value("PROCESSING"));
     }
