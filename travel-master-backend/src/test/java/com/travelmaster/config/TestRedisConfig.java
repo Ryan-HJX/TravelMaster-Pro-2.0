@@ -2,6 +2,8 @@ package com.travelmaster.config;
 
 import org.redisson.api.RedissonClient;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -32,5 +34,12 @@ public class TestRedisConfig {
     @Primary
     public RedissonClient redissonClient() {
         return mock(RedissonClient.class);
+    }
+
+    @Bean
+    @Primary
+    public CacheManager cacheManager() {
+        // Use a simple in-memory cache manager for tests to avoid Redis dependency
+        return new ConcurrentMapCacheManager("userProfile_v3", "postFeed", "postDetail", "creatorRanking", "hotItineraries");
     }
 }
