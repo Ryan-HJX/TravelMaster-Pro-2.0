@@ -48,11 +48,11 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/users/profile - success returns profile")
+    @DisplayName("GET /api/users/me - success returns profile")
     void getProfile_success() throws Exception {
         when(userService.getCurrentProfile("user-001")).thenReturn(MOCK_PROFILE);
 
-        mockMvc.perform(get("/api/users/profile")
+        mockMvc.perform(get("/api/users/me")
                         .header("X-User-Id", "user-001"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
@@ -61,7 +61,7 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("PUT /api/users/profile - success updates profile")
+    @DisplayName("PUT /api/users/me - success updates profile")
     void updateProfile_success() throws Exception {
         when(userService.updateProfile(anyString(), any(UpdateUserProfileRequest.class))).thenReturn(MOCK_PROFILE);
 
@@ -74,7 +74,7 @@ class UserControllerTest {
                 }
                 """;
 
-        mockMvc.perform(put("/api/users/profile")
+        mockMvc.perform(put("/api/users/me")
                         .header("X-User-Id", "user-001")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
@@ -84,9 +84,9 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("PUT /api/users/profile - empty body returns 400")
+    @DisplayName("PUT /api/users/me - empty body returns 400")
     void updateProfile_emptyBody_returns400() throws Exception {
-        mockMvc.perform(put("/api/users/profile")
+        mockMvc.perform(put("/api/users/me")
                         .header("X-User-Id", "user-001")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))

@@ -97,6 +97,8 @@ class SocialServiceTest {
         when(postLikeRepository.save(any(PostLike.class))).thenAnswer(inv -> inv.getArgument(0));
         when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
         when(userService.getCurrentProfile(anyString())).thenReturn(profileA);
+        when(userService.getProfileSafe(anyString())).thenReturn(profileA);
+        when(userService.getProfileSafe(anyString())).thenReturn(profileA); // Fix NPE
         when(followRepository.existsByFollowerIdAndFolloweeId(anyString(), anyString())).thenReturn(false);
 
         PostResponse response = socialService.likePost(USER_B, POST_ID, IP);
@@ -113,6 +115,7 @@ class SocialServiceTest {
         when(postRepository.findById(POST_ID)).thenReturn(Optional.of(testPost));
         when(postLikeRepository.existsByPostIdAndUserId(POST_ID, USER_B)).thenReturn(true);
         when(userService.getCurrentProfile(anyString())).thenReturn(profileA);
+        when(userService.getProfileSafe(anyString())).thenReturn(profileA);
         when(followRepository.existsByFollowerIdAndFolloweeId(anyString(), anyString())).thenReturn(false);
 
         PostResponse response = socialService.likePost(USER_B, POST_ID, IP);
@@ -137,6 +140,7 @@ class SocialServiceTest {
         when(postLikeRepository.save(any(PostLike.class))).thenAnswer(inv -> inv.getArgument(0));
         when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
         when(userService.getCurrentProfile(anyString())).thenReturn(profileA);
+        when(userService.getProfileSafe(anyString())).thenReturn(profileA);
         when(followRepository.existsByFollowerIdAndFolloweeId(anyString(), anyString())).thenReturn(false);
 
         socialService.likePost(USER_A, POST_ID, IP);
@@ -154,6 +158,7 @@ class SocialServiceTest {
         when(postFavoriteRepository.save(any(PostFavorite.class))).thenAnswer(inv -> inv.getArgument(0));
         when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
         when(userService.getCurrentProfile(anyString())).thenReturn(profileA);
+        when(userService.getProfileSafe(anyString())).thenReturn(profileA);
         when(followRepository.existsByFollowerIdAndFolloweeId(anyString(), anyString())).thenReturn(false);
 
         PostResponse response = socialService.favoritePost(USER_B, POST_ID, IP);

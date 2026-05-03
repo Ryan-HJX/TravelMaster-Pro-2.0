@@ -57,7 +57,7 @@ class ItineraryControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/itinerary/tasks - success creates task")
+    @DisplayName("POST /api/itinerary-tasks - success creates task")
     void createTask_success() throws Exception {
         when(itineraryTaskService.createTask(anyString(), any(CreateTaskRequest.class), anyString(), anyString())).thenReturn(MOCK_TASK);
 
@@ -72,7 +72,7 @@ class ItineraryControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/api/itinerary/tasks")
+        mockMvc.perform(post("/api/itinerary-tasks")
                         .header("X-User-Id", "user-001")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
@@ -83,11 +83,11 @@ class ItineraryControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/itinerary/tasks/{taskId} - success returns task")
+    @DisplayName("GET /api/itinerary-tasks/{taskId} - success returns task")
     void getTask_success() throws Exception {
         when(itineraryTaskService.getTask(anyString(), anyString())).thenReturn(MOCK_TASK);
 
-        mockMvc.perform(get("/api/itinerary/tasks/task-001")
+        mockMvc.perform(get("/api/itinerary-tasks/task-001")
                         .header("X-User-Id", "user-001"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
@@ -95,7 +95,7 @@ class ItineraryControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/itinerary/tasks - missing city returns 400")
+    @DisplayName("POST /api/itinerary-tasks - missing city returns 400")
     void createTask_missingCity_returns400() throws Exception {
         String body = """
                 {
@@ -104,7 +104,7 @@ class ItineraryControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/api/itinerary/tasks")
+        mockMvc.perform(post("/api/itinerary-tasks")
                         .header("X-User-Id", "user-001")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
