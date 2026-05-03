@@ -6,9 +6,12 @@ import io.restassured.http.ContentType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.redisson.api.RedissonClient;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 
 import static io.restassured.RestAssured.given;
@@ -21,6 +24,13 @@ class UserContractTest {
 
     @LocalServerPort
     private int port;
+
+    // Force mock these beans to prevent real Redis connection attempts
+    @MockBean
+    private RedissonClient redissonClient;
+
+    @MockBean
+    private StringRedisTemplate stringRedisTemplate;
 
     private String accessToken;
     private String userId;
