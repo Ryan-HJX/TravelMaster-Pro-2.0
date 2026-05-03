@@ -63,12 +63,10 @@ class ItineraryControllerTest {
 
         String body = """
                 {
-                    "originCity": "北京",
-                    "destinationCity": "上海",
-                    "travelDate": "2024-07-15",
-                    "durationDays": 3,
-                    "budgetLevel": "MEDIUM",
-                    "interests": ["food", "sightseeing"]
+                    "userInput": "北京到上海3天文化游",
+                    "preferences": {},
+                    "travelConstraints": {},
+                    "promptVersion": "v1-pro"
                 }
                 """;
 
@@ -95,12 +93,12 @@ class ItineraryControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/itinerary-tasks - missing city returns 400")
+    @DisplayName("POST /api/itinerary-tasks - missing userInput returns 400")
     void createTask_missingCity_returns400() throws Exception {
         String body = """
                 {
-                    "travelDate": "2024-07-15",
-                    "durationDays": 3
+                    "preferences": {},
+                    "travelConstraints": {}
                 }
                 """;
 
