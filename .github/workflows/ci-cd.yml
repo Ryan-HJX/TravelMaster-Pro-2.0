@@ -182,22 +182,24 @@ jobs:
           password: ${{ env.DOCKER_PASSWORD }}
 
       - name: Build and push backend
+        if: env.DOCKER_USERNAME != '' && env.DOCKER_PASSWORD != ''
         uses: docker/build-push-action@v5
         with:
           context: ./travel-master-backend
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/travelmaster-backend:latest
-            ${{ secrets.DOCKER_USERNAME }}/travelmaster-backend:${{ github.sha }}
+            ${{ env.DOCKER_USERNAME }}/travelmaster-backend:latest
+            ${{ env.DOCKER_USERNAME }}/travelmaster-backend:${{ github.sha }}
 
       - name: Build and push frontend
+        if: env.DOCKER_USERNAME != '' && env.DOCKER_PASSWORD != ''
         uses: docker/build-push-action@v5
         with:
           context: ./travel-master-frontend
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/travelmaster-frontend:latest
-            ${{ secrets.DOCKER_USERNAME }}/travelmaster-frontend:${{ github.sha }}
+            ${{ env.DOCKER_USERNAME }}/travelmaster-frontend:latest
+            ${{ env.DOCKER_USERNAME }}/travelmaster-frontend:${{ github.sha }}
 
   deploy:
     name: Deploy to Kubernetes
