@@ -163,7 +163,7 @@ jobs:
     name: Docker Build & Push
     runs-on: ubuntu-latest
     needs: [build, contract-test, security-scan]
-    if: github.ref == 'refs/heads/master' && ${{ secrets.DOCKER_USERNAME != '' && secrets.DOCKER_PASSWORD != '' }}
+    if: ${{ github.ref == 'refs/heads/master' && secrets.DOCKER_USERNAME != '' && secrets.DOCKER_PASSWORD != '' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -199,7 +199,7 @@ jobs:
     name: Deploy to Kubernetes
     runs-on: ubuntu-latest
     needs: docker-build
-    if: github.ref == 'refs/heads/master' && ${{ secrets.KUBE_CONFIG != '' }}
+    if: ${{ github.ref == 'refs/heads/master' && secrets.KUBE_CONFIG != '' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
