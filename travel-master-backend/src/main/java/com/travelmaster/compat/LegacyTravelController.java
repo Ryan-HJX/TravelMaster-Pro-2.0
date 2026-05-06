@@ -2,7 +2,6 @@ package com.travelmaster.compat;
 
 import com.travelmaster.common.dto.ApiResponse;
 import com.travelmaster.itinerary.dto.ItineraryResponse;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,7 +13,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "*")
 @RequestMapping("/api/travel")
 public class LegacyTravelController {
     private final LegacyTravelService legacyTravelService;

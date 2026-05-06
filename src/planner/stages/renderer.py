@@ -10,7 +10,7 @@ from src.llm.model_router import router
 from src.schemas.plan import (
     DayPlan, DayPlanItem, EnrichedPOI, FallbackPOI,
     MCPToolCall, PlanningScore, RouteOption, RouteSegment,
-    StructuredItinerary, TravelIntent, WeatherDay,
+    StructuredItinerary, TransportPlan, TravelIntent, WeatherDay,
 )
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ async def render_itinerary(
     weather_forecast: list[WeatherDay],
     planning_score: PlanningScore,
     finance_summary: dict[str, Any] | None,
-    transport_plan=None,
+    transport_plan: TransportPlan | None = None,
     trace_id: str = "",
     prompt_version: str = "v2-mcp",
     mcp_tool_calls: list[MCPToolCall] | None = None,

@@ -43,15 +43,12 @@ public class ItineraryTaskController {
     )
     public ApiResponse<TaskResponse> createTask(
             @AuthenticationPrincipal AuthenticatedUser currentUser,
-            @RequestHeader(value = "X-User-Id", required = false) String userIdFromHeader,
             @Valid @RequestBody CreateTaskRequest request,
             @Parameter(description = "幂等性 Key，防止重复提交", example = "uuid-v4-string")
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             HttpServletRequest httpRequest) {
-        String userId = currentUser != null ? currentUser.userId() : userIdFromHeader;
-        System.out.println(">>> [FRONTEND REQUEST] Received /api/itinerary-tasks for user: " + userId + " input: " + request.userInput());
         return ApiResponse.success(itineraryTaskService.createTask(
-                userId,
+                currentUser.userId(),
                 request,
                 idempotencyKey,
                 httpRequest.getRemoteAddr()
@@ -65,18 +62,14 @@ public class ItineraryTaskController {
     )
     public ApiResponse<TaskResponse> getTask(
             @AuthenticationPrincipal AuthenticatedUser currentUser,
-            @RequestHeader(value = "X-User-Id", required = false) String userIdFromHeader,
             @Parameter(description = "任务 ID", example = "task-123456")
             @PathVariable String taskId) {
-        String userId = currentUser != null ? currentUser.userId() : userIdFromHeader;
-        return ApiResponse.success(itineraryTaskService.getTask(userId, taskId));
+        return ApiResponse.success(itineraryTaskService.getTask(currentUser.userId(), taskId));
     }
 
     @GetMapping("/itineraries")
     public ApiResponse<java.util.List<com.travelmaster.itinerary.dto.ItineraryResponse>> getHistory(@AuthenticationPrincipal AuthenticatedUser currentUser) {
-        java.util.List<com.travelmaster.itinerary.dto.ItineraryResponse> history = itineraryTaskService.history(currentUser.userId());
-        System.out.println(">>> [HISTORY] User: " + currentUser.userId() + " found " + history.size() + " records");
-        return ApiResponse.success(history);
+        return ApiResponse.success(itineraryTaskService.history(currentUser.userId()));
     }
 
     @GetMapping("/itineraries/{id}")

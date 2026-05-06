@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import sys
 from contextlib import asynccontextmanager, suppress
 
@@ -20,15 +21,15 @@ if sys.platform == "win32":
     if hasattr(sys.stderr, "reconfigure"):
         sys.stderr.reconfigure(encoding="utf-8")
 
+logger = logging.getLogger(__name__)
 
-print(">>> [LOAD] main.py is loading...")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print(">>> [LIFESPAN] Starting application...")
+    logger.info("Starting application...")
     worker_task = None
     if settings.ENABLE_STREAM_WORKER:
-        print(">>> [LIFESPAN] Spawning Stream Worker...")
+        logger.info("Spawning Stream Worker...")
         worker_task = asyncio.create_task(process_stream_tasks())
     try:
         yield
@@ -37,6 +38,10 @@ async def lifespan(app: FastAPI):
             worker_task.cancel()
             with suppress(asyncio.CancelledError):
                 await worker_task
+        # Cleanup LLM client connections
+        from src.llm.model_router import get_bailian
+        await get_bailian().close()
+        logger.info("Application shutdown complete.")
 
 
 app = FastAPI(
@@ -50,7 +55,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -69,6 +74,6 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8000,
         reload=True,
-        log_level="info",  # 显示 info 级别日志，包括进度更新
-        access_log=False  # 关闭 HTTP 访问日志，减少噪音
+        log_level="info",
+        access_log=False
     )

@@ -212,5 +212,12 @@ class ProgressTracker:
             logger.error(f"Failed to complete task: {e}")
 
 
+    async def close(self):
+        """Close the Redis connection pool."""
+        if self._redis:
+            await self._redis.close()
+            self._redis = None
+
+
 # Global instance
 progress_tracker = ProgressTracker()

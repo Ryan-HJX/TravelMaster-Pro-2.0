@@ -6,15 +6,12 @@ from src.schemas.plan import (
     FallbackPOI,
     MCPToolCall,
     PlanningScore,
-    PointOfInterest,
     RouteOption,
-    RouteSegment,
     SkillTrace,
     StructuredItinerary,
     TravelIntent,
-    TransportPlan,  # 新增
+    TransportPlan,
     WeatherDay,
-    WeatherEntry,
 )
 
 
@@ -53,13 +50,6 @@ class TravelState(TypedDict, total=False):
 
     # ── Stage 9: Render ──────────────────────────────────────────
     plan: StructuredItinerary
-
-    # ── Legacy (kept for backward compat) ────────────────────────
-    templates: list[str]
-    social_notes: list[str]
-    weather: list[WeatherEntry]
-    pois: list[PointOfInterest]
-    routes: list[RouteSegment]
 
     # ── Observability ────────────────────────────────────────────
     skill_traces: list[SkillTrace]

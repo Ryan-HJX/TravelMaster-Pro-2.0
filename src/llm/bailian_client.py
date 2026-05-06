@@ -21,6 +21,18 @@ class BailianClient:
         self._url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
         self.main_model = settings.BAILIAN_MAIN_MODEL
         self.flash_model = settings.BAILIAN_FLASH_MODEL
+        self._client: httpx.AsyncClient | None = None
+
+    async def _get_client(self) -> httpx.AsyncClient:
+        if self._client is None or self._client.is_closed:
+            timeout = httpx.Timeout(300.0, connect=30.0, read=300.0)
+            self._client = httpx.AsyncClient(timeout=timeout, trust_env=True)
+        return self._client
+
+    async def close(self) -> None:
+        if self._client and not self._client.is_closed:
+            await self._client.aclose()
+            self._client = None
 
     async def create(
         self,
@@ -32,7 +44,7 @@ class BailianClient:
         temperature: float = 0.7,
         retries: int = 2
     ) -> dict[str, Any]:
-        """Call DashScope with retries and massive timeout."""
+        """Call DashScope with retries and exponential backoff."""
         model = model or self.main_model
 
         messages: list[dict[str, str]] = []
@@ -55,64 +67,64 @@ class BailianClient:
             "X-DashScope-SSE": "disable"
         }
 
-        # Use an even larger timeout (5 minutes) for extremely poor network conditions
-        timeout = httpx.Timeout(300.0, connect=30.0, read=300.0)
-
+        last_exc: Exception | None = None
         for attempt in range(retries):
             start = time.monotonic()
-            async with httpx.AsyncClient(timeout=timeout, trust_env=True) as client:
-                try:
-                    logger.info(">>> [LLM] Attempt %d/%d calling DashScope (%s)...", attempt + 1, retries, model)
-                    response = await client.post(self._url, json=payload, headers=headers)
+            client = await self._get_client()
+            try:
+                logger.info(">>> [LLM] Attempt %d/%d calling DashScope (%s)...", attempt + 1, retries, model)
+                response = await client.post(self._url, json=payload, headers=headers)
 
-                    if response.status_code == 429:  # Rate limit
-                        logger.warning(">>> [LLM] Rate limited, waiting 10s...")
-                        await asyncio.sleep(10)
-                        continue
+                if response.status_code == 429:
+                    retry_after = int(response.headers.get("Retry-After", 10))
+                    logger.warning(">>> [LLM] Rate limited, waiting %ds...", retry_after)
+                    if attempt < retries - 1:
+                        await asyncio.sleep(retry_after)
+                    continue
 
-                    response.raise_for_status()
-                    data = response.json()
+                response.raise_for_status()
+                data = response.json()
 
-                    output = data.get("output", {})
-                    choices = output.get("choices", [])
-                    output_text = ""
-                    tool_calls = []
+                output = data.get("output", {})
+                choices = output.get("choices", [])
+                output_text = ""
+                tool_calls = []
 
-                    if choices:
-                        message = choices[0].get("message", {})
-                        output_text = message.get("content", "")
-                        if "tool_calls" in message:
-                            for tc in message["tool_calls"]:
-                                tool_calls.append({
-                                    "type": tc.get("type", "function"),
-                                    "name": tc.get("function", {}).get("name", "") if "function" in tc else tc.get("name", ""),
-                                    "arguments": tc.get("function", {}).get("arguments", "") if "function" in tc else tc.get("arguments", ""),
-                                    "server_label": tc.get("server_label", "")
-                                })
+                if choices:
+                    message = choices[0].get("message", {})
+                    output_text = message.get("content", "")
+                    if "tool_calls" in message:
+                        for tc in message["tool_calls"]:
+                            tool_calls.append({
+                                "type": tc.get("type", "function"),
+                                "name": tc.get("function", {}).get("name", "") if "function" in tc else tc.get("name", ""),
+                                "arguments": tc.get("function", {}).get("arguments", "") if "function" in tc else tc.get("arguments", ""),
+                                "server_label": tc.get("server_label", "")
+                            })
 
-                    latency = int((time.monotonic() - start) * 1000)
-                    logger.info(">>> [LLM SUCCESS] Latency: %dms", latency)
+                latency = int((time.monotonic() - start) * 1000)
+                logger.info(">>> [LLM SUCCESS] Latency: %dms", latency)
 
-                    return {
-                        "output_text": output_text,
-                        "tool_calls": tool_calls,
-                        "usage": data.get("usage", {}),
-                        "latency_ms": latency,
-                        "model": model,
-                    }
+                return {
+                    "output_text": output_text,
+                    "tool_calls": tool_calls,
+                    "usage": data.get("usage", {}),
+                    "latency_ms": latency,
+                    "model": model,
+                }
 
-                except httpx.ReadTimeout:
-                    logger.error("!!! [LLM TIMEOUT] Read timeout on attempt %d. Network is very slow.", attempt + 1)
-                    if attempt == retries - 1:
-                        raise
-                    await asyncio.sleep(5)
-                except Exception as e:
-                    logger.error("!!! [LLM ERROR] %s: %s", type(e).__name__, str(e))
-                    if attempt == retries - 1:
-                        raise
-                    await asyncio.sleep(5)
+            except httpx.ReadTimeout as exc:
+                logger.error("!!! [LLM TIMEOUT] Read timeout on attempt %d.", attempt + 1)
+                last_exc = exc
+            except Exception as exc:
+                logger.error("!!! [LLM ERROR] %s: %s", type(exc).__name__, str(exc))
+                last_exc = exc
 
-        raise Exception("Failed after maximum retries")
+            if attempt < retries - 1:
+                backoff = 2 ** attempt * 5  # 5s, 10s
+                await asyncio.sleep(backoff)
+
+        raise RuntimeError(f"DashScope call failed after {retries} attempts") from last_exc
 
     async def plan_with_mcp(self, prompt: str, mcp_tools: list[dict], instructions: str | None = None) -> dict[str, Any]:
         return await self.create(input=prompt, tools=mcp_tools, instructions=instructions)

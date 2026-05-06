@@ -35,7 +35,42 @@ const PROVINCES_CITIES: Record<string, string[]> = {
   '内蒙古': ['呼和浩特市', '包头市', '乌海市', '赤峰市', '通辽市', '鄂尔多斯市', '呼伦贝尔市', '巴彦淖尔市', '乌兰察布市'],
   '宁夏': ['银川市', '石嘴山市', '吴忠市', '固原市', '中卫市'],
   '新疆': ['乌鲁木齐市', '克拉玛依市', '吐鲁番市', '哈密市', '昌吉市', '博乐市', '库尔勒市', '阿克苏市', '喀什市', '和田市', '塔城市', '阿勒泰市', '伊宁市'],
-  '西藏': ['拉萨市', '日喀则市', '昌都市', '林芝市', '山南市', '那曲市']
+  '西藏': ['拉萨市', '日喀则市', '昌都市', '林芝市', '山南市', '那曲市'],
+  '香港': ['香港特别行政区'],
+  '澳门': ['澳门特别行政区']
+};
+
+// 省份短名 → 全名映射
+const SHORT_TO_FULL: Record<string, string> = {
+  '北京': '北京市', '天津': '天津市', '上海': '上海市', '重庆': '重庆市',
+  '河北': '河北省', '山西': '山西省', '辽宁': '辽宁省', '吉林': '吉林省',
+  '黑龙江': '黑龙江省', '江苏': '江苏省', '浙江': '浙江省', '安徽': '安徽省',
+  '福建': '福建省', '江西': '江西省', '山东': '山东省', '河南': '河南省',
+  '湖北': '湖北省', '湖南': '湖南省', '广东': '广东省', '海南': '海南省',
+  '四川': '四川省', '贵州': '贵州省', '云南': '云南省', '陕西': '陕西省',
+  '甘肃': '甘肃省', '青海': '青海省', '台湾': '台湾省',
+  '内蒙古': '内蒙古自治区', '广西': '广西壮族自治区', '西藏': '西藏自治区',
+  '宁夏': '宁夏回族自治区', '新疆': '新疆维吾尔自治区',
+  '香港': '香港特别行政区', '澳门': '澳门特别行政区',
+};
+
+// 省份全名 → 城市列表映射
+const PROVINCE_TO_CITIES: Record<string, string[]> = {};
+Object.entries(PROVINCES_CITIES).forEach(([shortName, cities]) => {
+  const fullName = SHORT_TO_FULL[shortName];
+  if (fullName) PROVINCE_TO_CITIES[fullName] = cities;
+});
+// 直辖市：省份名即城市名
+['北京市', '天津市', '上海市', '重庆市'].forEach(p => {
+  if (!PROVINCE_TO_CITIES[p]) PROVINCE_TO_CITIES[p] = [p];
+});
+
+// 统计已访问列表覆盖了多少个省份（供 DashboardPage 复用）
+export const countVisitedProvinces = (visited: string[]) => {
+  const set = new Set(visited);
+  return Object.entries(PROVINCE_TO_CITIES).filter(
+    ([province, cities]) => set.has(province) || cities.some(c => set.has(c))
+  ).length;
 };
 
 // 热门旅游城市列表
@@ -87,29 +122,24 @@ const CityMap: React.FC<CityMapProps> = ({ visitedCities = [], onCityToggle }) =
 
     // 只显示已访问
     if (showVisitedOnly) {
-      cities = cities.filter(city => currentVisitedCities.includes(city));
+      cities = cities.filter(city => isVisited(city));
     }
 
     return cities;
   };
 
-  // 切换城市访问状态
-  const handleToggleCity = (city: string) => {
-    const newVisited = currentVisitedCities.includes(city)
-      ? currentVisitedCities.filter(c => c !== city)
-      : [...currentVisitedCities, city];
+  // 检查城市是否已访问（直接匹配城市名）
+  const isVisited = (city: string) => currentVisitedCities.includes(city);
 
-    setCurrentVisitedCities(newVisited);
+  // 切换城市访问状态 — 传城市名给父组件
+  const handleToggleCity = (city: string) => {
     onCityToggle?.(city);
   };
 
-  // 检查城市是否已访问
-  const isVisited = (city: string) => currentVisitedCities.includes(city);
-
-  // 统计数据
+  // 城市维度统计
   const totalCities = getAllCities().length;
-  const visitedCount = currentVisitedCities.length;
-  const percentage = Math.round((visitedCount / totalCities) * 100 * 10) / 10;
+  const visitedCityCount = currentVisitedCities.length;
+  const percentage = Math.round((visitedCityCount / totalCities) * 100 * 10) / 10;
 
   const filteredCities = getFilteredCities();
   const provinces = ['全部', '热门', ...Object.keys(PROVINCES_CITIES)];
@@ -124,7 +154,7 @@ const CityMap: React.FC<CityMapProps> = ({ visitedCities = [], onCityToggle }) =
             我的足迹地图
           </h3>
           <span className="text-xs bg-white/20 px-3 py-1 rounded-full font-bold">
-            {visitedCount} / {totalCities} 城市
+            {visitedCityCount} / {totalCities} 城市
           </span>
         </div>
 
@@ -243,7 +273,9 @@ const CityMap: React.FC<CityMapProps> = ({ visitedCities = [], onCityToggle }) =
       {/* Footer Actions */}
       <div className="p-4 border-t border-gray-100 bg-gray-50 flex gap-2">
         <button
-          onClick={() => setCurrentVisitedCities([])}
+          onClick={() => {
+            [...currentVisitedCities].forEach(c => onCityToggle?.(c));
+          }}
           disabled={currentVisitedCities.length === 0}
           className="flex-1 px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
@@ -251,7 +283,11 @@ const CityMap: React.FC<CityMapProps> = ({ visitedCities = [], onCityToggle }) =
           清空全部
         </button>
         <button
-          onClick={() => setCurrentVisitedCities(getAllCities())}
+          onClick={() => {
+            getAllCities().forEach(city => {
+              if (!currentVisitedCities.includes(city)) onCityToggle?.(city);
+            });
+          }}
           className="flex-1 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-xs font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2"
         >
           <Check size={14} />

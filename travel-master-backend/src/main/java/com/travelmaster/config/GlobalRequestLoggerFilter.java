@@ -2,12 +2,14 @@ package com.travelmaster.config;
 
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
+@Slf4j
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class GlobalRequestLoggerFilter implements Filter {
@@ -15,7 +17,7 @@ public class GlobalRequestLoggerFilter implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
         HttpServletRequest req = (HttpServletRequest) request;
-        System.out.println(">>> [SERVER TRAFFIC] " + req.getMethod() + " " + req.getRequestURI() + " from " + req.getRemoteAddr());
+        log.debug(">>> [SERVER TRAFFIC] {} {} from {}", req.getMethod(), req.getRequestURI(), req.getRemoteAddr());
         chain.doFilter(request, response);
     }
 }

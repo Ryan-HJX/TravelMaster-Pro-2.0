@@ -15,6 +15,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+
 @RestController
 @RequestMapping("/api/internal/ai/tasks")
 public class InternalAiController {
@@ -31,7 +34,9 @@ public class InternalAiController {
     public ApiResponse<TaskResponse> complete(@PathVariable String taskId,
                                               @RequestHeader("X-Internal-Token") String token,
                                               @Valid @RequestBody AiTaskResultRequest request) {
-        if (!properties.getInternal().getToken().equals(token)) {
+        String expected = properties.getInternal().getToken();
+        if (expected == null || expected.isBlank() ||
+                !MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8), token.getBytes(StandardCharsets.UTF_8))) {
             throw new com.travelmaster.common.exception.AppException(HttpStatus.UNAUTHORIZED, "invalid internal token");
         }
         return ApiResponse.success(itineraryTaskService.completeTask(taskId, request));

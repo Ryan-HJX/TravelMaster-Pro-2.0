@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
@@ -196,6 +197,7 @@ class StructuredItinerary(BaseModel):
     weather_forecast: list[WeatherDay] = Field(default_factory=list)
     planning_score: PlanningScore = Field(default_factory=PlanningScore)
     model_provider: str = ""
+    model_name: str = ""
     mcp_tool_calls: list[MCPToolCall] = Field(default_factory=list)
     finance_summary: dict[str, Any] | None = None
     transport_plan: TransportPlan | None = None  # 新增：大交通方案

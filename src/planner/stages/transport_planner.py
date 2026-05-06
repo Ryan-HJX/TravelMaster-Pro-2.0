@@ -4,10 +4,13 @@ Stage 8: Inter-city Transport Planner (新增：大交通规划)
 """
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta
 from typing import TypedDict
 
 from src.schemas.plan import TravelIntent, TransportPlan, InterCityTransport
+
+logger = logging.getLogger(__name__)
 
 
 class FlightData(TypedDict):
@@ -57,7 +60,7 @@ async def plan_intercity_transport(
         # 没有出发地或出发地=目的地，不需要大交通
         return TransportPlan()
 
-    print(f"🚄 [大交通规划] 从 {intent.departure_city} 到 {intent.city}")
+    logger.info("大交通规划: 从 %s 到 %s", intent.departure_city, intent.city)
 
     # 生成去程和返程方案
     outbound = await _generate_one_way(

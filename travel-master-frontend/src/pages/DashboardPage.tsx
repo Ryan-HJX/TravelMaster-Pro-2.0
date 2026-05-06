@@ -15,7 +15,7 @@ import {
   type PostResponse, type AuthorSummary, type NotificationResponse, type ItineraryResponse
 } from '../services/api';
 import ChinaMap from '../components/ChinaMap';
-import CityMap from '../components/CityMap';
+import CityMap, { countVisitedProvinces } from '../components/CityMap';
 
 const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, onLogout }) => {
   const [taskInput, setTaskInput] = useState('北京3天文化游，预算中等，想多逛博物馆和古建');
@@ -37,9 +37,8 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
   const [commentDialog, setCommentDialog] = useState<{ open: boolean; postId: string | null }>({ open: false, postId: null });
   const [commentText, setCommentText] = useState('');
   const [visitedProvinces, setVisitedProvinces] = useState<string[]>(() => {
-    // 从 localStorage 加载已访问省份
     const saved = localStorage.getItem('visitedProvinces');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? [...new Set(JSON.parse(saved) as string[])] : [];
   });
   const [showChinaMap, setShowChinaMap] = useState(false);
   const navigate = useNavigate();
@@ -287,13 +286,13 @@ const DashboardPage: React.FC<{ user: any; onLogout: () => void }> = ({ user, on
               </div>
               <div className="text-left">
                 <div className="text-sm font-bold">我的足迹地图</div>
-                <div className="text-[10px] text-white/70">{visitedProvinces.length} 个省份已点亮</div>
+                <div className="text-[10px] text-white/70">{countVisitedProvinces(visitedProvinces)} 个省份已点亮</div>
               </div>
             </div>
             <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-white rounded-full transition-all"
-                style={{ width: `${Math.min((visitedProvinces.length / 34) * 100, 100)}%` }}
+                style={{ width: `${Math.min((countVisitedProvinces(visitedProvinces) / 34) * 100, 100)}%` }}
               />
             </div>
           </button>

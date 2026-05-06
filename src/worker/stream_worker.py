@@ -8,7 +8,7 @@ import httpx
 from redis.asyncio import from_url as redis_from_url
 
 from src.config.settings import settings
-from src.schemas.plan import WorkerTaskRequest
+from src.schemas.plan import StructuredItinerary, WorkerTaskRequest
 from src.services.travel_service import TravelService
 from src.services.progress_tracker import progress_tracker
 
@@ -25,44 +25,48 @@ async def process_stream_tasks() -> None:
     logger.info(f"Will only process NEW messages (last_id={last_id})")
     async with httpx.AsyncClient(timeout=settings.EXTERNAL_TIMEOUT_SECONDS, trust_env=False) as client:
         logger.info("HTTP Client initialized. Entering main loop...")
-        while True:
-            try:
-                messages = await redis_client.xread({settings.AI_TASK_STREAM: last_id}, block=5000, count=10)
-                if not messages:
-                    logger.debug(f"Watching {settings.AI_TASK_STREAM} from ID {last_id}...")
-                    continue
-                for _, entries in messages:
-                    for message_id, payload in entries:
-                        last_id = message_id
+        try:
+            while True:
+                try:
+                    messages = await redis_client.xread({settings.AI_TASK_STREAM: last_id}, block=5000, count=10)
+                    if not messages:
+                        logger.debug(f"Watching {settings.AI_TASK_STREAM} from ID {last_id}...")
+                        continue
+                    for _, entries in messages:
+                        for message_id, payload in entries:
+                            last_id = message_id
 
-                        if "taskId" not in payload or "userInput" not in payload:
-                            logger.warning(f"Invalid message format (id: {message_id})")
-                            continue
+                            if "taskId" not in payload or "userInput" not in payload:
+                                logger.warning(f"Invalid message format (id: {message_id})")
+                                continue
 
-                        logger.info(f"Processing task: {payload['taskId']} (User: {payload.get('userId')})")
+                            logger.info(f"Processing task: {payload['taskId']} (User: {payload.get('userId')})")
 
-                        try:
-                            request = WorkerTaskRequest(
-                                task_id=payload["taskId"],
-                                user_id=payload.get("userId", "anonymous"),
-                                trace_id=payload.get("traceId", "none"),
-                                prompt_version=payload.get("promptVersion", "v2-mcp"),
-                                user_input=payload["userInput"],
-                                preferences=json.loads(payload.get("preferences", "{}")),
-                                travel_constraints=json.loads(payload.get("travelConstraints", "{}")),
-                            )
-                            await _handle_task(travel_service, client, request)
-                        except Exception as inner_exc:
-                            logger.error(f"Failed to handle task {payload.get('taskId')}: {inner_exc}")
+                            try:
+                                request = WorkerTaskRequest(
+                                    task_id=payload["taskId"],
+                                    user_id=payload.get("userId", "anonymous"),
+                                    trace_id=payload.get("traceId", "none"),
+                                    prompt_version=payload.get("promptVersion", "v2-mcp"),
+                                    user_input=payload["userInput"],
+                                    preferences=json.loads(payload.get("preferences", "{}")),
+                                    travel_constraints=json.loads(payload.get("travelConstraints", "{}")),
+                                )
+                                await _handle_task(travel_service, client, request)
+                            except Exception as inner_exc:
+                                logger.error(f"Failed to handle task {payload.get('taskId')}: {inner_exc}")
 
-            except asyncio.CancelledError:
-                raise
-            except Exception as exc:
-                logger.error(f"Iteration failed: {exc}")
-                await asyncio.sleep(1)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    logger.error(f"Iteration failed: {exc}")
+                    await asyncio.sleep(1)
+        finally:
+            await redis_client.close()
+            await progress_tracker.close()
 
 
-def _build_success_payload(plan, request: WorkerTaskRequest) -> dict:
+def _build_success_payload(plan: StructuredItinerary, request: WorkerTaskRequest) -> dict[str, any]:
     """Build success payload from plan and request."""
     mcp_calls = [tc.model_dump() for tc in plan.mcp_tool_calls]
     return {

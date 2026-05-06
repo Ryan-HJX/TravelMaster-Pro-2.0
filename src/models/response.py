@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Generic, TypeVar, Optional
 import time
 
@@ -12,7 +12,7 @@ class BaseResponse(BaseModel, Generic[T]):
     code: int = 200
     data: Optional[T] = None
     message: str = "success"
-    timestamp: int = int(time.time())
+    timestamp: int = Field(default_factory=lambda: int(time.time()))
 
     @classmethod
     def success(cls, data: T, message: str = "success"):

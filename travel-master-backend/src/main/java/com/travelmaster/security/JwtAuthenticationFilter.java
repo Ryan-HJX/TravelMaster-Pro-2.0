@@ -1,5 +1,7 @@
 package com.travelmaster.security;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.travelmaster.user.repository.AppUserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -15,12 +17,17 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenService jwtTokenService;
     private final AppUserRepository appUserRepository;
+    private final Cache<String, Boolean> userCache = Caffeine.newBuilder()
+            .maximumSize(1000)
+            .expireAfterWrite(5, TimeUnit.MINUTES)
+            .build();
 
     public JwtAuthenticationFilter(JwtTokenService jwtTokenService, AppUserRepository appUserRepository) {
         this.jwtTokenService = jwtTokenService;
@@ -36,7 +43,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 if (jwtTokenService.isValid(token, "access")) {
                     String userId = jwtTokenService.getUserId(token);
-                    if (appUserRepository.existsById(userId)) {
+                    if (userId == null) {
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+                    Boolean exists = userCache.get(userId, id -> appUserRepository.existsById(id));
+                    if (Boolean.TRUE.equals(exists)) {
                         AuthenticatedUser authenticatedUser = new AuthenticatedUser(userId);
                         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                                 authenticatedUser,

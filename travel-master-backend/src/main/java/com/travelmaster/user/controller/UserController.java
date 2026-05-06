@@ -12,7 +12,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,10 +36,8 @@ public class UserController {
         description = "查询当前登录用户的详细信息，包括昵称、头像、偏好标签等"
     )
     public ApiResponse<UserProfileResponse> currentUser(
-            @AuthenticationPrincipal AuthenticatedUser currentUser,
-            @RequestHeader(value = "X-User-Id", required = false) String userIdFromHeader) {
-        String userId = currentUser != null ? currentUser.userId() : userIdFromHeader;
-        return ApiResponse.success(userService.getCurrentProfile(userId));
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ApiResponse.success(userService.getCurrentProfile(currentUser.userId()));
     }
 
     @PutMapping("/me")
@@ -50,9 +47,7 @@ public class UserController {
     )
     public ApiResponse<UserProfileResponse> updateCurrentUser(
             @AuthenticationPrincipal AuthenticatedUser currentUser,
-            @RequestHeader(value = "X-User-Id", required = false) String userIdFromHeader,
             @Valid @RequestBody UpdateUserProfileRequest request) {
-        String userId = currentUser != null ? currentUser.userId() : userIdFromHeader;
-        return ApiResponse.success(userService.updateProfile(userId, request));
+        return ApiResponse.success(userService.updateProfile(currentUser.userId(), request));
     }
 }

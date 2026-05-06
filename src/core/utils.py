@@ -30,7 +30,7 @@ def parse_json_safe(text: str, default: Any = None) -> Any:
     try:
         cleaned = extract_json_markdown(text)
         return json.loads(cleaned)
-    except (json.JSONDecodeError, Exception) as exc:
+    except (json.JSONDecodeError, ValueError) as exc:
         logger.warning("JSON parse failed: %s", exc)
         return default
 
@@ -61,48 +61,3 @@ def async_step(step_id: str):
     return decorator
 
 
-def calculate_budget(intent: Any, transport_cost: int = 0) -> dict[str, Any]:
-    """Calculate travel budget based on intent parameters.
-
-    Args:
-        intent: TravelIntent object or dict with budget and days attributes
-        transport_cost: 大交通费用(往返总费用)
-    """
-    budget_map: dict[str, dict[str, int | str]] = {
-        "low": {"daily": 300, "description": "经济型"},
-        "medium": {"daily": 800, "description": "舒适型"},
-        "high": {"daily": 2000, "description": "豪华型"}
-    }
-
-    # Support both dict and object access
-    budget_key = intent.get("budget", "medium") if isinstance(intent, dict) else getattr(intent, "budget", "medium")
-    days_raw = intent.get("days", 3) if isinstance(intent, dict) else getattr(intent, "days", 3)
-    days_int = int(days_raw) if days_raw is not None else 3
-
-    budget_info = budget_map.get(budget_key, budget_map["medium"])
-    daily_base: int = int(budget_info["daily"])
-    local_total: int = daily_base * days_int  # 当地消费总额
-
-    grand_total = local_total + transport_cost
-
-    accommodation = int(local_total * 0.35)
-    food = int(local_total * 0.25)
-    local_transport = int(local_total * 0.20)
-    activities = int(local_total * 0.15)
-    emergency = int(local_total * 0.05)
-
-    return {
-        "total_budget": f"¥{grand_total:,}",
-        "local_spending": f"¥{local_total:,}",
-        "intercity_transport": f"¥{transport_cost:,}" if transport_cost > 0 else "包含在总预算中",
-        "daily_average": f"¥{daily_base:,}",
-        "budget_level": budget_key.upper(),
-        "budget_description": budget_info["description"],
-        "breakdown": {
-            "accommodation": {"amount": f"¥{accommodation:,}", "percentage": 35, "description": "住宿费用"},
-            "food": {"amount": f"¥{food:,}", "percentage": 25, "description": "餐饮费用"},
-            "transport": {"amount": f"¥{local_transport:,}", "percentage": 20, "description": "市内交通费用"},
-            "activities": {"amount": f"¥{activities:,}", "percentage": 15, "description": "景点门票及活动"},
-            "emergency": {"amount": f"¥{emergency:,}", "percentage": 5, "description": "应急备用金"}
-        }
-    }

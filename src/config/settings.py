@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     # ── Limits ────────────────────────────────────────────────────
     MAX_POI_PER_REQUEST: int = 20
 
+    # ── Database ──────────────────────────────────────────────────
+    DATABASE_URL: str = "sqlite:///./travelmaster.db"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

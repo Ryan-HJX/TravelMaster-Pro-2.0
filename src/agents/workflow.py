@@ -13,7 +13,8 @@ from uuid import uuid4
 from langgraph.graph import END, StateGraph
 
 from src.agents.state import TravelState
-from src.core.utils import async_step, calculate_budget
+from src.core.utils import async_step
+from src.planner.stages.finance_advisor import calculate_budget
 from src.schemas.plan import MCPToolCall, PlanningScore, SkillTrace
 
 from src.planner.stages.intent_parser import parse_intent
