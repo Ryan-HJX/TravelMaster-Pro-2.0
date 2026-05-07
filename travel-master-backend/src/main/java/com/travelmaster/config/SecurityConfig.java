@@ -45,6 +45,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/", "/index.html", "/static/**", "/assets/**", "/*.js", "/*.css", "/favicon.ico").permitAll()
                         .requestMatchers("/api/auth/**", "/ws/**", "/error").permitAll()
+                        .requestMatchers("/api/internal/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/feed", "/api/rankings/**").permitAll()
                         .anyRequest().authenticated()
                 )

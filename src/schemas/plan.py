@@ -88,6 +88,12 @@ class EnrichedPOI(BaseModel):
     poi_type: str = "attraction"  # attraction | restaurant | rest | backup
     source: str = "amap_mcp"
     distance_from_center_km: float = 0.0
+    image_url: str = ""
+    rating: float = 0.0
+    ticket_price: str = ""
+    estimated_price: str = ""   # "免费" / "60元" / "人均80元"
+    highlights: str = ""        # "推荐菜品：宫保鸡丁" / "必看：太和殿"
+    tips: str = ""              # "建议早上去人少" / "周一闭馆"
 
 
 class FallbackPOI(BaseModel):
@@ -155,6 +161,19 @@ class DayPlanItem(BaseModel):
     end_time: str
     transport: RouteSegment | None = None
     notes: str = ""
+    estimated_price: str = ""
+    highlights: str = ""
+    tips: str = ""
+
+
+class HotelRecommendation(BaseModel):
+    """酒店推荐"""
+    name: str
+    address: str = ""
+    estimated_price: str = ""      # "300-400元/晚"
+    star_rating: str = ""          # "经济型" / "舒适型" / "豪华型"
+    highlights: str = ""           # "距故宫步行10分钟"
+    booking_tip: str = ""          # "建议提前预订"
 
 
 class DayPlan(BaseModel):
@@ -162,6 +181,7 @@ class DayPlan(BaseModel):
     title: str
     weather: WeatherDay | None = None
     items: list[DayPlanItem] = Field(default_factory=list)
+    hotel: HotelRecommendation | None = None
 
 
 # ── Planning Score ───────────────────────────────────────────────

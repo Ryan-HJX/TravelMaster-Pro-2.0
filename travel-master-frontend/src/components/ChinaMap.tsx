@@ -279,7 +279,7 @@ const ChinaMap: React.FC<ChinaMapProps> = ({ visitedCities, onCityToggle, onClos
                 <div style="font-weight: bold; margin-bottom: 4px; font-size: 14px;">${province}</div>
                 <div style="margin-top: 4px; padding: 4px 8px; border-radius: 4px; display: inline-block; ${
                   isVisited 
-                    ? 'background: #fef3c7; color: #f97316; font-weight: bold;' 
+                    ? 'background: #E8F2FF; color: #007AFF; font-weight: bold;'
                     : 'background: #f3f4f6; color: #999;'
                 }">
                   ${isVisited ? '✓ 已访问' : '○ 未访问'}
@@ -290,7 +290,7 @@ const ChinaMap: React.FC<ChinaMapProps> = ({ visitedCities, onCityToggle, onClos
           return params.name;
         },
         backgroundColor: 'rgba(255, 255, 255, 0.98)',
-        borderColor: '#f97316',
+        borderColor: '#007AFF',
         borderWidth: 2,
         borderRadius: 8,
         padding: 0,
@@ -301,7 +301,7 @@ const ChinaMap: React.FC<ChinaMapProps> = ({ visitedCities, onCityToggle, onClos
         min: 0,
         max: 1,
         inRange: {
-          color: ['#e5e7eb', '#f97316'] // 灰色 -> 橙色
+          color: ['#e5e7eb', '#007AFF'] // 灰色 -> 蓝色
         }
       },
       geo: {
@@ -322,7 +322,7 @@ const ChinaMap: React.FC<ChinaMapProps> = ({ visitedCities, onCityToggle, onClos
         },
         emphasis: {
           itemStyle: {
-            areaColor: '#fdba74',
+            areaColor: '#60a5fa',
             shadowBlur: 10,
             shadowColor: 'rgba(0, 0, 0, 0.2)'
           },
@@ -384,7 +384,7 @@ const ChinaMap: React.FC<ChinaMapProps> = ({ visitedCities, onCityToggle, onClos
           {mapLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--primary)] mx-auto mb-4"></div>
                 <p className="text-gray-600 text-sm">正在加载地图...</p>
               </div>
             </div>
@@ -403,14 +403,14 @@ const ChinaMap: React.FC<ChinaMapProps> = ({ visitedCities, onCityToggle, onClos
           {/* Stats Overlay */}
           <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-lg">
             <div className="flex items-center gap-3 mb-2">
-              <MapPin size={20} className="text-orange-500" />
+              <MapPin size={20} className="text-[var(--primary)]" />
               <div>
                 <div className="text-xs text-gray-500">探索进度</div>
                 <div className="text-lg font-black text-gray-900">{percentage}%</div>
               </div>
             </div>
             <div className="text-xs text-gray-600">
-              已访问 <span className="font-bold text-orange-500">{visitedCount}</span> / {totalCount} 省份
+              已访问 <span className="font-bold text-[var(--primary)]">{visitedCount}</span> / {totalCount} 省份
             </div>
           </div>
         </div>
@@ -418,7 +418,7 @@ const ChinaMap: React.FC<ChinaMapProps> = ({ visitedCities, onCityToggle, onClos
         {/* Right Panel - Province List */}
         <div className="w-80 bg-gray-50 border-l border-gray-200 flex flex-col">
           {/* Header */}
-          <div className="p-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white">
+          <div className="p-4 bg-[var(--primary)] text-white">
             <h3 className="text-lg font-bold mb-2">省份管理</h3>
             <p className="text-xs text-white/80">点击地图或列表标记去过的省份</p>
           </div>
@@ -432,7 +432,7 @@ const ChinaMap: React.FC<ChinaMapProps> = ({ visitedCities, onCityToggle, onClos
                 placeholder="搜索省份..."
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 outline-none"
+                className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary)] outline-none"
               />
             </div>
           </div>
@@ -448,7 +448,7 @@ const ChinaMap: React.FC<ChinaMapProps> = ({ visitedCities, onCityToggle, onClos
                     onClick={() => onCityToggle(province)}
                     className={`w-full flex items-center justify-between p-3 rounded-xl transition-all text-left ${
                       isVisited
-                        ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md'
+                        ? 'bg-[var(--primary)] text-white shadow-md'
                         : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-200'
                     }`}
                   >
@@ -487,7 +487,7 @@ const ChinaMap: React.FC<ChinaMapProps> = ({ visitedCities, onCityToggle, onClos
                   }
                 });
               }}
-              className="flex-1 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-xs font-bold hover:shadow-lg transition-all"
+              className="flex-1 px-4 py-2 bg-[var(--primary)] text-white rounded-xl text-xs font-bold hover:shadow-lg transition-all"
             >
               全部点亮
             </button>

@@ -99,6 +99,8 @@ async def poi_pool_node(state: TravelState) -> TravelState:
     return {
         "enriched_pois": pois,
         "fallback_options": fallbacks,
+        "hotels": meta.get("hotels", []),
+        "meituan_context": meta.get("meituan_context", ""),
         "skill_traces": traces,
         "mcp_tool_calls": mcp_calls,
     }
@@ -198,6 +200,8 @@ async def render_node(state: TravelState) -> TravelState:
         prompt_version=state.get("prompt_version", "v2-mcp"),
         mcp_tool_calls=state.get("mcp_tool_calls", []),
         model_provider=state.get("model_provider", ""),
+        hotels=state.get("hotels", []),
+        meituan_context=state.get("meituan_context", ""),
     )
 
     task_id = str(state.get("task_id", ""))

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, User, MapPin, Sparkles, ArrowRight } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, MapPin } from 'lucide-react';
 import { login, register, setAccessToken } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
@@ -18,10 +18,10 @@ const AuthPage: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const res = isLogin 
+      const res = isLogin
         ? await login({ account: email, password })
         : await register({ email, password, nickname });
-      
+
       setAccessToken(res.accessToken);
       window.location.href = '/';
     } catch (err: any) {
@@ -32,33 +32,28 @@ const AuthPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[#f8fafc] overflow-hidden relative">
-      {/* Decorative Elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-100/50 blur-[120px]" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-rose-100/50 blur-[120px]" />
-
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--bg-main)' }}>
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full glass card-shadow-lg rounded-3xl p-8 z-10 relative"
+        transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+        className="max-w-sm w-full apple-card p-8"
       >
+        {/* Logo */}
         <div className="text-center mb-8">
-          <motion.div 
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl premium-gradient text-white mb-4 shadow-lg shadow-indigo-200"
-          >
-            <Sparkles size={32} />
-          </motion.div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-            {isLogin ? '欢迎回来' : '开启旅程'}
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4" style={{ background: 'var(--primary)' }}>
+            <MapPin size={28} color="white" />
+          </div>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-main)' }}>
+            {isLogin ? '欢迎回来' : '创建账号'}
           </h1>
-          <p className="text-slate-500 mt-2 text-sm font-medium">
-            {isLogin ? '使用您的账号登录 TravelMaster Pro' : '加入全球最智能的旅游规划社交平台'}
+          <p className="text-sm mt-1.5" style={{ color: 'var(--text-muted)' }}>
+            {isLogin ? '登录以继续使用 TravelMaster' : '开始您的智能旅行规划'}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-3">
           <AnimatePresence mode="wait">
             {!isLogin && (
               <motion.div
@@ -67,14 +62,15 @@ const AuthPage: React.FC = () => {
                 exit={{ opacity: 0, height: 0 }}
                 className="relative"
               >
-                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400">
-                  <User size={18} />
+                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none" style={{ color: 'var(--text-muted)' }}>
+                  <User size={16} />
                 </div>
                 <input
                   type="text"
                   required
-                  placeholder="您的昵称"
-                  className="w-full pl-10 pr-4 py-3 bg-white/50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-sm"
+                  placeholder="昵称"
+                  className="w-full pl-10 pr-4 py-3 text-sm"
+                  style={{ background: 'var(--border-light)', border: '1px solid transparent', borderRadius: 12, outline: 'none' }}
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                 />
@@ -83,38 +79,41 @@ const AuthPage: React.FC = () => {
           </AnimatePresence>
 
           <div className="relative">
-            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400">
-              <Mail size={18} />
+            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none" style={{ color: 'var(--text-muted)' }}>
+              <Mail size={16} />
             </div>
             <input
               type="email"
               required
               placeholder="邮箱地址"
-              className="w-full pl-10 pr-4 py-3 bg-white/50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-sm"
+              className="w-full pl-10 pr-4 py-3 text-sm"
+              style={{ background: 'var(--border-light)', border: '1px solid transparent', borderRadius: 12, outline: 'none' }}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
 
           <div className="relative">
-            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400">
-              <Lock size={18} />
+            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none" style={{ color: 'var(--text-muted)' }}>
+              <Lock size={16} />
             </div>
             <input
               type="password"
               required
-              placeholder="您的密码"
-              className="w-full pl-10 pr-4 py-3 bg-white/50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-sm"
+              placeholder="密码"
+              className="w-full pl-10 pr-4 py-3 text-sm"
+              style={{ background: 'var(--border-light)', border: '1px solid transparent', borderRadius: 12, outline: 'none' }}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
 
           {error && (
-            <motion.p 
+            <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-rose-500 text-xs font-medium px-2"
+              className="text-xs font-medium px-1"
+              style={{ color: '#FF3B30' }}
             >
               {error}
             </motion.p>
@@ -123,35 +122,27 @@ const AuthPage: React.FC = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full premium-gradient text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:shadow-xl hover:shadow-indigo-200 transition-all active:scale-[0.98] disabled:opacity-70"
+            className="w-full py-3 apple-btn-primary text-sm flex items-center justify-center gap-2 mt-4"
           >
-            {loading ? '处理中...' : (isLogin ? '立即登录' : '立即注册')}
-            {!loading && <ArrowRight size={18} />}
+            {loading ? '处理中...' : (isLogin ? '登录' : '注册')}
+            {!loading && <ArrowRight size={16} />}
           </button>
         </form>
 
-        <div className="mt-8 text-center border-t border-slate-100 pt-6">
-          <p className="text-sm text-slate-500">
-            {isLogin ? '还没有账号？' : '已经有账号？'}
+        {/* Toggle */}
+        <div className="mt-6 text-center">
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            {isLogin ? '没有账号？' : '已有账号？'}
             <button
               onClick={() => setIsLogin(!isLogin)}
-              className="ml-1 text-indigo-600 font-semibold hover:underline"
+              className="ml-1 font-medium"
+              style={{ color: 'var(--primary)' }}
             >
-              {isLogin ? '立即创建' : '点击登录'}
+              {isLogin ? '注册' : '登录'}
             </button>
           </p>
         </div>
       </motion.div>
-
-      {/* Floating Info */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-6 text-slate-400">
-        <div className="flex items-center gap-2 text-xs font-medium">
-          <MapPin size={14} /> Amap MCP 支持
-        </div>
-        <div className="flex items-center gap-2 text-xs font-medium">
-          <Sparkles size={14} /> 阿里云百炼驱动
-        </div>
-      </div>
     </div>
   );
 };

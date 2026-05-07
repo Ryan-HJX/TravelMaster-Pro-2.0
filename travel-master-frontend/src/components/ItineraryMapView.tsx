@@ -30,28 +30,26 @@ interface Props {
   days: DayRoute[];
   planningScore: { level: string; reasoning: string; daily_poi_avg: number; total_transport_minutes: number };
   amapKey: string;
+  externalActiveDay?: number;
+  onDayChange?: (day: number) => void;
 }
 
-const SCORE_COLORS: Record<string, string> = {
-  relaxed: '#22c55e',
-  normal: '#3b82f6',
-  tight: '#f59e0b',
-  infeasible: '#ef4444',
-};
+const DAY_COLORS = ['#3b82f6', '#6366f1', '#22c55e', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
-const SCORE_LABELS: Record<string, string> = {
-  relaxed: '轻松',
-  normal: '适中',
-  tight: '紧凑',
-  infeasible: '不可执行',
-};
-
-export default function ItineraryMapView({ pois, days, planningScore, amapKey }: Props) {
+export default function ItineraryMapView({ pois, days, planningScore, amapKey, externalActiveDay, onDayChange }: Props) {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [activeDay, setActiveDay] = useState(1);
+  const [activeDay, setActiveDay] = useState(externalActiveDay || 1);
   const [mapLoaded, setMapLoaded] = useState(false);
   const mapInstance = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const infoWindowRef = useRef<any>(null);
+
+  // Sync with external activeDay
+  useEffect(() => {
+    if (externalActiveDay && externalActiveDay !== activeDay) {
+      setActiveDay(externalActiveDay);
+    }
+  }, [externalActiveDay]);
 
   // Load AMap JS API
   useEffect(() => {
@@ -59,17 +57,13 @@ export default function ItineraryMapView({ pois, days, planningScore, amapKey }:
       setMapLoaded(true);
       return;
     }
-    // AMap v2.0 Security Config
     (window as any)._AMapSecurityConfig = {
-      securityJsCode: 'c392c3008986a41f69206d2890638682', // Placeholder or matching key
+      securityJsCode: 'c392c3008986a41f69206d2890638682',
     };
     const script = document.createElement('script');
     script.src = `https://webapi.amap.com/maps?v=2.0&key=${amapKey}`;
-    script.onload = () => {
-      console.log(">>> [MAP] AMap Script loaded successfully");
-      setMapLoaded(true);
-    };
-    script.onerror = (e) => console.error(">>> [MAP] AMap Script failed to load:", e);
+    script.onload = () => setMapLoaded(true);
+    script.onerror = (e) => console.error(">>> [MAP] AMap Script failed:", e);
     document.head.appendChild(script);
   }, [amapKey]);
 
@@ -77,11 +71,8 @@ export default function ItineraryMapView({ pois, days, planningScore, amapKey }:
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return;
     const AMap = (window as any).AMap;
-    console.log(">>> [MAP] Initializing with POIs:", pois.length);
-    if (pois.length > 0) {
-      console.log(">>> [MAP] First POI:", pois[0].name, pois[0].longitude, pois[0].latitude);
-    }
-    const center = pois.length > 0 && pois[0].longitude ? [pois[0].longitude, pois[0].latitude] : [116.397, 39.908];
+    const allItems = days.flatMap(d => d.items).filter(i => i.longitude && i.latitude);
+    const center = allItems.length > 0 ? [allItems[0].longitude, allItems[0].latitude] : [116.397, 39.908];
     try {
       mapInstance.current = new AMap.Map(mapRef.current, {
         zoom: 12,
@@ -89,9 +80,9 @@ export default function ItineraryMapView({ pois, days, planningScore, amapKey }:
         mapStyle: 'amap://styles/whitesmoke',
       });
     } catch (e) {
-      console.error(">>> [MAP] Failed to create map instance:", e);
+      console.error(">>> [MAP] Failed to create map:", e);
     }
-  }, [mapLoaded, pois]);
+  }, [mapLoaded, days]);
 
   // Update markers when activeDay changes
   useEffect(() => {
@@ -103,31 +94,52 @@ export default function ItineraryMapView({ pois, days, planningScore, amapKey }:
     const dayData = days.find((d) => d.day_number === activeDay);
     if (!dayData) return;
 
-    // Collect valid points for polyline
+    const color = DAY_COLORS[(activeDay - 1) % DAY_COLORS.length];
     const validPoints: any[] = [];
 
     dayData.items.forEach((item, idx) => {
       if (!item.longitude || !item.latitude) return;
-      
       const position = [item.longitude, item.latitude];
       validPoints.push(new AMap.LngLat(item.longitude, item.latitude));
-      
+
       const marker = new AMap.Marker({
-        position: position,
+        position,
         title: item.item_title,
-        label: { content: `<span style="background:#3b82f6;color:#fff;padding:2px 6px;border-radius:10px;font-size:12px">${idx + 1}</span>`, direction: 'top' },
+        label: {
+          content: `<span style="background:${color};color:#fff;padding:2px 7px;border-radius:10px;font-size:12px;font-weight:600">${idx + 1}</span>`,
+          direction: 'top',
+          offset: [0, -5],
+        },
       });
+
+      // Click to show info window
+      marker.on('click', () => {
+        if (infoWindowRef.current) infoWindowRef.current.close();
+        infoWindowRef.current = new AMap.InfoWindow({
+          content: `
+            <div style="padding:8px 12px;min-width:160px">
+              <div style="font-weight:600;font-size:14px;margin-bottom:4px">${item.item_title}</div>
+              <div style="font-size:12px;color:#6b7280">📍 ${item.address}</div>
+              <div style="font-size:12px;color:#6b7280;margin-top:2px">⏰ ${item.start_time}-${item.end_time}</div>
+              ${item.notes ? `<div style="font-size:11px;color:#9ca3af;margin-top:4px">${item.notes}</div>` : ''}
+            </div>
+          `,
+          offset: new AMap.Pixel(0, -30),
+        });
+        infoWindowRef.open(mapInstance.current, marker.getPosition());
+      });
+
       marker.setMap(mapInstance.current);
       markersRef.current.push(marker);
     });
 
-    // Draw polyline connecting all points
+    // Draw polyline
     if (validPoints.length >= 2) {
       const polyline = new AMap.Polyline({
         path: validPoints,
-        strokeColor: "#3b82f6",
-        strokeWeight: 5,
-        strokeOpacity: 0.8,
+        strokeColor: color,
+        strokeWeight: 4,
+        strokeOpacity: 0.7,
         lineJoin: 'round',
         showDir: true,
         borderWeight: 1,
@@ -137,121 +149,55 @@ export default function ItineraryMapView({ pois, days, planningScore, amapKey }:
       markersRef.current.push(polyline);
     }
 
-    if (dayData.items.length > 0) {
-      const first = dayData.items[0];
-      if (first.longitude && first.latitude) {
-        mapInstance.current.setCenter([first.longitude, first.latitude]);
-      }
+    // Fit view
+    if (validPoints.length > 0) {
+      mapInstance.current.setFitView(markersRef.current, false, [60, 60, 60, 60]);
     }
   }, [activeDay, days, mapLoaded]);
 
-  const currentDay = days.find((d) => d.day_number === activeDay);
-  const scoreColor = SCORE_COLORS[planningScore.level] || '#6b7280';
+  const handleDaySwitch = (day: number) => {
+    setActiveDay(day);
+    onDayChange?.(day);
+  };
 
   return (
-    <div style={{ display: 'flex', gap: 16, height: 600 }}>
-      {/* Map Container */}
-      <div style={{ flex: 2, borderRadius: 12, overflow: 'hidden', border: '1px solid #e5e7eb', position: 'relative' }}>
-        <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
-        
-        {/* Fallback Map (visible if JS API fails) */}
-        {!mapLoaded && pois.length > 0 && (
-          <div style={{ position: 'absolute', inset: 0, background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-            <div style={{ 
-              width: '200px', 
-              height: '200px', 
-              background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 20px rgba(59, 130, 246, 0.3)',
-              marginBottom: 16 
-            }}>
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
-                <line x1="8" y1="2" x2="8" y2="18"></line>
-                <line x1="16" y1="6" x2="16" y2="22"></line>
-              </svg>
-            </div>
-            <h3 style={{ fontSize: 18, fontWeight: 600, color: '#1f2937', marginBottom: 8 }}>📍 {pois[0].name}</h3>
-            <p style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', maxWidth: '300px' }}>
-              地图加载中... 请检查网络连接或稍后重试
-            </p>
-            <div style={{ marginTop: 16, padding: '8px 16px', background: '#eff6ff', borderRadius: 8 }}>
-              <div style={{ fontSize: 12, color: '#3b82f6', fontWeight: 500 }}>📍 行程地点</div>
-              <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>
-                {pois.slice(0, 3).map((poi, idx) => (
-                  <div key={idx}>{idx + 1}. {poi.name}</div>
-                ))}
-                {pois.length > 3 && <div>... 共 {pois.length} 个地点</div>}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Sidebar */}
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {/* Score badge */}
-        <div style={{ background: `${scoreColor}15`, border: `1px solid ${scoreColor}40`, borderRadius: 10, padding: '10px 14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <span style={{ background: scoreColor, color: '#fff', padding: '2px 10px', borderRadius: 20, fontSize: 13, fontWeight: 600 }}>
-              {SCORE_LABELS[planningScore.level] || planningScore.level}
-            </span>
-            <span style={{ fontSize: 13, color: '#6b7280' }}>可执行性评分</span>
-          </div>
-          <p style={{ fontSize: 12, color: '#6b7280', margin: 0 }}>{planningScore.reasoning}</p>
-        </div>
-
-        {/* Day tabs */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {days.map((d) => (
+    <div className="flex flex-col h-full">
+      {/* Day tabs */}
+      <div className="flex gap-1.5 px-3 py-2.5 border-b border-gray-100 overflow-x-auto">
+        {days.map((d) => {
+          const color = DAY_COLORS[(d.day_number - 1) % DAY_COLORS.length];
+          return (
             <button
               key={d.day_number}
-              onClick={() => setActiveDay(d.day_number)}
-              style={{
-                padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
-                background: activeDay === d.day_number ? '#3b82f6' : '#f3f4f6',
-                color: activeDay === d.day_number ? '#fff' : '#374151',
-              }}
+              onClick={() => handleDaySwitch(d.day_number)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                activeDay === d.day_number
+                  ? 'text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}
+              style={activeDay === d.day_number ? { background: color } : undefined}
             >
               Day {d.day_number}
             </button>
-          ))}
-        </div>
+          );
+        })}
+      </div>
 
-        {/* Weather card */}
-        {currentDay?.weather && (
-          <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 10, padding: '8px 12px', fontSize: 13 }}>
-            <span>🌤 {currentDay.weather.weather}</span>
-            <span style={{ marginLeft: 8, color: '#6b7280' }}>
-              {currentDay.weather.temperature_high}/{currentDay.weather.temperature_low}
-            </span>
-            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#6b7280' }}>{currentDay.weather.advice}</p>
+      {/* Map */}
+      <div className="flex-1 relative">
+        <div ref={mapRef} className="w-full h-full" />
+        {!mapLoaded && (
+          <div className="absolute inset-0 bg-gray-50 flex flex-col items-center justify-center gap-3">
+            <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2">
+                <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+                <line x1="8" y1="2" x2="8" y2="18" />
+                <line x1="16" y1="6" x2="16" y2="22" />
+              </svg>
+            </div>
+            <span className="text-sm text-gray-500">地图加载中...</span>
           </div>
         )}
-
-        {/* Items list */}
-        {currentDay?.items.map((item, idx) => (
-          <div key={idx} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '10px 14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <span style={{ background: '#3b82f6', color: '#fff', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
-                {idx + 1}
-              </span>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>{item.item_title}</span>
-            </div>
-            <p style={{ fontSize: 12, color: '#6b7280', margin: '2px 0' }}>
-              ⏰ {item.start_time}-{item.end_time} | 📍 {item.address}
-            </p>
-            {item.transport && (
-              <p style={{ fontSize: 12, color: '#3b82f6', margin: '2px 0' }}>
-                🚌 {item.transport.mode} · {item.transport.duration_minutes}分钟
-              </p>
-            )}
-            {item.notes && <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0' }}>{item.notes}</p>}
-          </div>
-        ))}
       </div>
     </div>
   );

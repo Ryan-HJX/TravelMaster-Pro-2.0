@@ -32,6 +32,8 @@ class TravelState(TypedDict, total=False):
     # ── Stage 3: POI Pool ────────────────────────────────────────
     enriched_pois: list[EnrichedPOI]
     fallback_options: list[FallbackPOI]
+    hotels: list[dict[str, Any]]
+    meituan_context: str
 
     # ── Stage 4: Route Optimization ──────────────────────────────
     route_options: list[RouteOption]

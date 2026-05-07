@@ -15,11 +15,19 @@ logger = logging.getLogger(__name__)
 GEO_INSTRUCTIONS = """\
 你是一个地理信息专家。根据用户的旅行目的地，使用高德地图工具完成以下任务：
 
+**必须使用的高德工具**：
+1. 地理编码（geocode）— 获取城市中心坐标
+2. 行政区划查询（district_search）— 获取城市核心区域信息
+3. 周边搜索（around_search）— 发现热门商圈、夜市、美食街
+4. POI 搜索（keyword_search）— 搜索标志性景点确认城市位置
+
+要求：
 1. 对目的地城市做地理编码，获取城市中心坐标
 2. 如果用户指定了出发点/结束点（如酒店、机场、火车站），也做地理编码
 3. 识别城市的核心旅游区域
+4. 发现城市的特色区域：热门商圈、美食街、夜市、文化街区
+5. 标注城市的主要交通枢纽（机场、火车站）
 
-请使用高德地图的地理编码和逆地理编码工具。
 最终输出 JSON 格式：
 {
   "city_name": "城市名",
@@ -27,6 +35,9 @@ GEO_INSTRUCTIONS = """\
   "start_point": {"name": "...", "lng": ..., "lat": ...} 或 null,
   "end_point": {"name": "...", "lng": ..., "lat": ...} 或 null,
   "core_areas": ["区域1", "区域2"],
+  "featured_areas": [{"name": "南锣鼓巷", "type": "文化街区", "description": "..."}],
+  "food_streets": [{"name": "簋街", "specialty": "小龙虾"}],
+  "transport_hubs": [{"name": "首都国际机场", "type": "airport"}],
   "city_adcode": "城市行政区划代码"
 }
 """

@@ -80,13 +80,13 @@ export default function TravelBudgetAdvisor({ financeSummary }: Props) {
 
       {/* Liquidity Alerts */}
       {liquidity_alerts && liquidity_alerts.length > 0 && (
-        <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12, padding: '14px 18px' }}>
+        <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 12, padding: '14px 18px' }}>
           <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>⏰ 赎回时点提醒</div>
           {liquidity_alerts.map((alert, idx) => (
-            <div key={idx} style={{ fontSize: 13, marginBottom: 6, paddingLeft: 12, borderLeft: '3px solid #f59e0b' }}>
+            <div key={idx} style={{ fontSize: 13, marginBottom: 6, paddingLeft: 12, borderLeft: '3px solid #D97706' }}>
               <div style={{ fontWeight: 600 }}>{alert.type}</div>
               <div style={{ color: '#6b7280' }}>{alert.reminder}</div>
-              {alert.deadline && <div style={{ color: '#ea580c', fontSize: 12 }}>截止: {alert.deadline}</div>}
+              {alert.deadline && <div style={{ color: '#D97706', fontSize: 12 }}>截止: {alert.deadline}</div>}
             </div>
           ))}
         </div>

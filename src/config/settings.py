@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     YINGMI_MCP_URL: str = ""
     YINGMI_API_KEY: str = ""
 
+    # ── Meituan Open Platform ────────────────────────────────────
+    MEITUAN_API_KEY: str = ""
+    MEITUAN_BASE_URL: str = "https://openapi.meituan.com"
+
     # ── Redis / Worker ───────────────────────────────────────────
     REDIS_URL: str = "redis://localhost:6379/0"
     AI_TASK_STREAM: str = "travelmaster:ai:tasks"

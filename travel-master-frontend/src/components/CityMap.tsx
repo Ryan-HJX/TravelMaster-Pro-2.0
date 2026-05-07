@@ -147,7 +147,7 @@ const CityMap: React.FC<CityMapProps> = ({ visitedCities = [], onCityToggle }) =
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
       {/* Header with Stats */}
-      <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-6 text-white">
+      <div className="bg-[var(--primary)] p-6 text-white">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold flex items-center gap-2">
             <MapPin size={20} />
@@ -185,7 +185,7 @@ const CityMap: React.FC<CityMapProps> = ({ visitedCities = [], onCityToggle }) =
             placeholder="搜索城市..."
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 outline-none"
+            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary)] outline-none"
           />
         </div>
 
@@ -197,7 +197,7 @@ const CityMap: React.FC<CityMapProps> = ({ visitedCities = [], onCityToggle }) =
               onClick={() => setSelectedProvince(province)}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
                 selectedProvince === province
-                  ? 'bg-orange-500 text-white shadow-md'
+                  ? 'bg-[var(--primary)] text-white shadow-md'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
@@ -240,7 +240,7 @@ const CityMap: React.FC<CityMapProps> = ({ visitedCities = [], onCityToggle }) =
                   onClick={() => handleToggleCity(city)}
                   className={`relative p-3 rounded-xl text-left transition-all group ${
                     isVisited(city)
-                      ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-md'
+                      ? 'bg-[var(--primary)] text-white shadow-md'
                       : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
                   }`}
                 >
@@ -258,7 +258,7 @@ const CityMap: React.FC<CityMapProps> = ({ visitedCities = [], onCityToggle }) =
                   </div>
                   {!isVisited(city) && (
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="bg-orange-500 text-white rounded-full p-1.5 shadow-lg">
+                      <div className="bg-[var(--primary)] text-white rounded-full p-1.5 shadow-lg">
                         <Check size={14} />
                       </div>
                     </div>
@@ -288,7 +288,7 @@ const CityMap: React.FC<CityMapProps> = ({ visitedCities = [], onCityToggle }) =
               if (!currentVisitedCities.includes(city)) onCityToggle?.(city);
             });
           }}
-          className="flex-1 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-xs font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+          className="flex-1 px-4 py-2 bg-[var(--primary)] text-white rounded-xl text-xs font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2"
         >
           <Check size={14} />
           全部点亮
